@@ -32,7 +32,7 @@ hs_corr_data$X..MCAS_3rdGrade_Math_A
 
 hs_corr_data_cl <-subset(hs_corr_data, colSums(is.na(hs_corr_data)) > 30)
 list<- lapply(hs_corr_data, colSums(is.na(i)))
-        
+
 hs_corr_data_cl <- hs_corr_data[colSums(!is.na(hs_corr_data)) > 40]
 #install.packages("sqldf")
 library(sqldf)
@@ -41,36 +41,36 @@ library(sqldf)
 library(dplyr)
 hs_data_ready<- 
   select(hs_corr_data_cl, 
-       #School.Code, Zip, 
-       #District.Code,
-       #SP_Enrollment, 
-       #TOTAL_Enrollment, 
-       X..First.Language.Not.English,
-       X..High.Needs,
-       X..Economically.Disadvantaged,
-       X..African.American,
-       X..Asian,
-       X..Hispanic,
-       X..White,
-       #X..Multi.Race..Non.Hispanic,
-       X..Males,
-       X..Females,
-       Average.Class.Size,
-       Average.Salary,
-       Average.In.District.Expenditures.per.Pupil,
-       Average.Expenditures.per.Pupil,
-       #X..in.Cohort,
-       X..GED,
-       X..Non.Grad.Completers,
-       X..Dropped.Out,
-       X..Attending.College,
-       X..Private.Four.Year,
-       X..Public.Four.Year,
-       X..MA.Community.College,
-       X..AP_Score.3.5,
-       SAT_Tests.Taken,
-       Average.SAT_Reading,
-       Average.SAT_Math)
+         #School.Code, Zip, 
+         #District.Code,
+         #SP_Enrollment, 
+         #TOTAL_Enrollment, 
+         X..First.Language.Not.English,
+         X..High.Needs,
+         X..Economically.Disadvantaged,
+         X..African.American,
+         X..Asian,
+         X..Hispanic,
+         X..White,
+         #X..Multi.Race..Non.Hispanic,
+         X..Males,
+         X..Females,
+         Average.Class.Size,
+         Average.Salary,
+         Average.In.District.Expenditures.per.Pupil,
+         Average.Expenditures.per.Pupil,
+         #X..in.Cohort,
+         X..GED,
+         X..Non.Grad.Completers,
+         X..Dropped.Out,
+         X..Attending.College,
+         X..Private.Four.Year,
+         X..Public.Four.Year,
+         X..MA.Community.College,
+         X..AP_Score.3.5,
+         SAT_Tests.Taken,
+         Average.SAT_Reading,
+         Average.SAT_Math)
 
 
 hs_corr_data_cl
@@ -150,7 +150,7 @@ na_salary <-
   hs_data_ready %>% 
   select( everything() ) %>%
   filter(is.na(Average.Salary))
-  
+
 hist(hs_data_ready$X..Economically.Disadvantaged,
      xlab = "% Of Econ Disadvantaged Students",
      main = "All Schools")
@@ -186,13 +186,13 @@ trans <- preProcess(hs_data_ready,
 transformed <- predict(trans, hs_data_ready)
 
 trans_impute <- preProcess(hs_data_ready,
-                    method = c("BoxCox", "center", "scale", "knnImpute"))
+                           method = c("BoxCox", "center", "scale", "knnImpute"))
 transformed_imputed <- predict(trans_impute, hs_data_ready)
 
 trans
 
 #install.packages("RANN")
-#library(RANN)
+library(RANN)
 transformed <- predict(trans, hs_data_ready)
 transformed_imputed <- predict(trans_impute, hs_data_ready)
 
@@ -228,21 +228,21 @@ hist(transformed_imputed$Average.Salary,
 #normalize same way so we can join tables
 
 trans_Scores <- preProcess(Data_na_scores,
-                             method = c("BoxCox", "center", "scale"), na.remove = TRUE)
+                           method = c("BoxCox", "center", "scale"), na.remove = TRUE)
 new_NA_scores<- predict(trans_scores, Data_na_scores)
 
 #join by variables i know werent missing 
 #i need school code and name as a unique identifier for this
 join <- transformed_imputed %>% inner_join(new_na_sc, by = c("X..First.Language.Not.English", 
-                                                                  "X..High.Needs", 
-                                                                  "X..Economically.Disadvantaged", 
-                                                                  "X..African.American", 
-                                                                  "X..Asian", 
-                                                                  "X..Hispanic", 
-                                                                  "X..White", 
-                                                                  "X..Males", 
-                                                                  "X..Females"))
- join                                         
+                                                             "X..High.Needs", 
+                                                             "X..Economically.Disadvantaged", 
+                                                             "X..African.American", 
+                                                             "X..Asian", 
+                                                             "X..Hispanic", 
+                                                             "X..White", 
+                                                             "X..Males", 
+                                                             "X..Females"))
+join                                         
 
 
 Data_na_scores
@@ -250,7 +250,7 @@ Data_na_scores
 imputations<-transformed_imputed %>%
   select(everything()) %>% 
   filter(is.na(Average.SAT_Math))
-                         
+
 
 
 hist(transformed$X..Economically.Disadvantaged)
@@ -259,3 +259,83 @@ hist(transformed$Average.SAT_Math)
 
 #now lets impute
 ?preProcess
+
+#lets start exploring relationships
+#lets try clustering schools
+
+#hierarichal clustering using euclidean distance 
+distances <- dist(transformed_imputed, method = "euclidean")
+cluster_schools <- hclust(distances, method = "ward.D")
+plot(cluster_schools)
+#based on cluster dendogram we would pick 2 or 3 
+
+#lets get better understanding of clusters
+clusterGroups <- cutree(cluster_schools, k=3)
+
+tapply(transformed_imputed$X..Economically.Disadvantaged, clusterGroups, mean)
+tapply(transformed_imputed$X..AP_Score.3.5, clusterGroups, mean)
+tapply(transformed_imputed$X..Hispanic, clusterGroups, mean)
+tapply(transformed_imputed$Average.SAT_Math, clusterGroups, mean)
+tapply(transformed_imputed$Average.Salary, clusterGroups, mean)
+tapply(transformed_imputed$Average.Class.Size, clusterGroups, mean)
+table(clusterGroups)
+
+set.seed(88)
+k=4
+kmeansGroups <- kmeans(transformed_imputed, centers = k, iter.max = 1000)
+school_k_clusters <- kmeansGroups$cluster
+#how many schools fall into each cluster
+table(school_k_clusters)
+
+tapply(transformed_imputed$X..Economically.Disadvantaged, school_k_clusters, mean)
+tapply(transformed_imputed$Average.SAT_Math, school_k_clusters, mean)
+tapply(transformed_imputed$Average.Salary, school_k_clusters, mean)
+tapply(transformed_imputed$Average.Class.Size, school_k_clusters, mean)
+
+#define new variable as cluster
+transformed_imputed$kmeans <- as.factor(school_k_clusters)
+transformed_imputed$kmeans
+str(transformed_imputed$kmeans)
+
+#graph clusters 
+p<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Class.Size))
+p + geom_point()
+p + geom_point(aes(color = factor(kmeans)))
+
+
+p<- ggplot(transformed_imputed, aes(Average.SAT_Math, X..Hispanic))
+p + geom_point(aes(color = factor(kmeans)))
+
+p<- ggplot(transformed_imputed, aes(Average.SAT_Math, X..Economically.Disadvantaged))
+p + geom_point(aes(color = factor(kmeans)))
+
+p<- ggplot(transformed_imputed, aes(X..Hispanic, X..Economically.Disadvantaged))
+p + geom_point(aes(color = factor(kmeans)))
+
+p<- ggplot(transformed_imputed, aes(Average.Class.Size, X..Economically.Disadvantaged))
+p + geom_point(aes(color = factor(kmeans)))
+
+p<- ggplot(transformed_imputed, aes(Average.Salary, X..Economically.Disadvantaged))
+p + geom_point(aes(color = factor(kmeans)))
+
+p<- ggplot(transformed_imputed, aes(Average.Expenditures.per.Pupil, X..Economically.Disadvantaged))
+p + geom_point(aes(color = factor(kmeans)))
+
+p<- ggplot(transformed_imputed, aes(Average.Expenditures.per.Pupil, Average.SAT_Math))
+p + geom_point(aes(color = factor(kmeans)))
+
+p<- ggplot(transformed_imputed, aes(Average.Salary, Average.SAT_Math))
+p + geom_point(aes(color = factor(kmeans)))
+
+#use rmarkdown to creat dashboard
+#http://rmarkdown.rstudio.com/flexdashboard/
+
+#find outliers with respect to economic disadvantage and good SAT scores
+#find out what drives them -> teacher salary, class size
+#notes: 
+#Economic disadvantage seems to be the best variable for predicting SAT scores
+#however teacher salary and class size does not change substantially with respect to economic
+#disadvantage, neither does expenditure per student
+#teacher salary, class size and expenditure per pupil seem to have a greater effect on 
+#the cluster 4 
+#graph the clusters vs. economic disadvantage in bar graph to get more insight on clusters
