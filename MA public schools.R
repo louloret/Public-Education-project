@@ -176,6 +176,9 @@ hist(na_salary$X..Economically.Disadvantaged,
 #look into normalizing all predictors 
 #look into imputing values 
 
+#declaring score 
+hs_data_ready$salary_class_size <- hs_data_ready$Average.Salary/Average.SAT_Math$Average.Class.Size
+
 #let us normalize & impute
 library(caret)
 #look at difference between imputed and non imputed normalized data
@@ -270,7 +273,7 @@ plot(cluster_schools)
 #based on cluster dendogram we would pick 2 or 3 
 
 #lets get better understanding of clusters
-clusterGroups <- cutree(cluster_schools, k=3)
+clusterGroups <- cutree(cluster_schools, k=4)
 
 tapply(transformed_imputed$X..Economically.Disadvantaged, clusterGroups, mean)
 tapply(transformed_imputed$X..AP_Score.3.5, clusterGroups, mean)
@@ -291,6 +294,13 @@ tapply(transformed_imputed$X..Economically.Disadvantaged, school_k_clusters, mea
 tapply(transformed_imputed$Average.SAT_Math, school_k_clusters, mean)
 tapply(transformed_imputed$Average.Salary, school_k_clusters, mean)
 tapply(transformed_imputed$Average.Class.Size, school_k_clusters, mean)
+tapply(transformed_imputed$X..Hispanic, school_k_clusters, mean)
+tapply(transformed_imputed$X..African.American, school_k_clusters, mean)
+
+#summary of each variable by cluster
+library(purrr)
+
+transformed_imputed %>% split(.$kmeans) %>% map(summary)
 
 #define new variable as cluster
 transformed_imputed$kmeans <- as.factor(school_k_clusters)
@@ -298,10 +308,13 @@ transformed_imputed$kmeans
 str(transformed_imputed$kmeans)
 
 #graph clusters 
-p<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Class.Size))
+p<- ggplot(transformed_imputed, aes(Average.Class.Size, Average.SAT_Math))
 p + geom_point()
 p + geom_point(aes(color = factor(kmeans)))
 
+p<- ggplot(transformed_imputed, aes(Average.Class.Size, Average.SAT_Math))
+p + geom_point()
+p + geom_point(aes(color = factor(clusterGroups)))
 
 p<- ggplot(transformed_imputed, aes(Average.SAT_Math, X..Hispanic))
 p + geom_point(aes(color = factor(kmeans)))
@@ -309,8 +322,11 @@ p + geom_point(aes(color = factor(kmeans)))
 p<- ggplot(transformed_imputed, aes(Average.SAT_Math, X..Economically.Disadvantaged))
 p + geom_point(aes(color = factor(kmeans)))
 
-p<- ggplot(transformed_imputed, aes(X..Hispanic, X..Economically.Disadvantaged))
-p + geom_point(aes(color = factor(kmeans)))
+#p<- ggplot(transformed_imputed, aes(Average.SAT_Math, X..Economically.Disadvantaged))
+#p + geom_point(aes(color = factor(clusterGroups)))
+
+#p<- ggplot(transformed_imputed, aes(X..Hispanic, X..Economically.Disadvantaged))
+#p + geom_point(aes(color = factor(kmeans)))
 
 p<- ggplot(transformed_imputed, aes(Average.Class.Size, X..Economically.Disadvantaged))
 p + geom_point(aes(color = factor(kmeans)))
@@ -339,3 +355,15 @@ p + geom_point(aes(color = factor(kmeans)))
 #teacher salary, class size and expenditure per pupil seem to have a greater effect on 
 #the cluster 4 
 #graph the clusters vs. economic disadvantage in bar graph to get more insight on clusters
+
+#adding a teacher salary per class size score
+#transformed_imputed$salary_class_size <- transformed_imputed$Average.Salary/transformed_imputed$Average.Class.Size
+p<- ggplot(transformed_imputed, aes(salary_class_size, Average.SAT_Math))
+p + geom_point(aes(color = factor(kmeans)))
+
+#dam this needs to be declared before normalizing
+within(transformed_imputed, rm(salary_class_size))
+
+install.packages("flexdashboard")
+
+
