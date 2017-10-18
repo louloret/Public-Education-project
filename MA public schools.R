@@ -1,3 +1,4 @@
+
 #school is back
 
 
@@ -5,7 +6,7 @@ data <- read.csv("MA_Public_Schools_2017.csv")
 str(data)
 
 #explore correlations across variables
-install.packages("corrplot")
+#install.packages("corrplot")
 library(corrplot)
 correlations<- cor(data)
 corrplot(correlations, order="hclust")
@@ -73,6 +74,41 @@ hs_data_ready<-
          Average.SAT_Reading,
          Average.SAT_Math)
 
+hs_data_ready1<- 
+  select(hs_corr_data_cl, 
+         #School.Code, Zip, 
+         #District.Code,
+         SP_Enrollment, 
+         TOTAL_Enrollment,
+         Total.Pupil.FTEs,
+         #X..First.Language.Not.English,
+         X..High.Needs,
+         X..Economically.Disadvantaged,
+         #X..African.American,
+         #X..Asian,
+         #X..Hispanic,
+         #X..White,
+         #X..Multi.Race..Non.Hispanic,
+         X..Males,
+         X..Females,
+         Average.Class.Size,
+         Average.Salary,
+         Average.In.District.Expenditures.per.Pupil,
+         Average.Expenditures.per.Pupil,
+         #X..in.Cohort,
+         X..GED,
+         X..Non.Grad.Completers,
+         X..Dropped.Out,
+         X..Attending.College,
+         X..Private.Four.Year,
+         X..Public.Four.Year,
+         X..MA.Community.College,
+         X..AP_Score.3.5,
+         SAT_Tests.Taken,
+         Average.SAT_Reading,
+         Average.SAT_Math) %>%
+  mutate()
+
 
 hs_corr_data_cl
 
@@ -81,6 +117,7 @@ hs_data_ready
 correlations<-cor(x=hs_data_ready, use = "pairwise")
 corrplot(correlations, method = "circle", order= "hclust", type = "upper")
 ?corrplot
+
 
 
 cool<- subset(hs_data_ready, Average.Class.Size <16)
@@ -95,7 +132,7 @@ summary(hs_data_ready$X..Economically.Disadvantaged)
 hist(hs_data_ready$X..Economically.Disadvantaged)
 summary(hs_data_ready$X..Economically.Disadvantaged)
 
-install.packages("LaplacesDemon")
+#install.packages("LaplacesDemon")
 library(LaplacesDemon)
 joint.density.plot(hs_data_ready$Average.SAT_Math, hs_data_ready$X..Economically.Disadvantaged )
 
@@ -316,6 +353,59 @@ ggplot(transformed_imputed, aes(x=kmeans)) +
   xlab("Clusters") + 
   ylab("Total Count") 
 
+#correlations on imputed values
+hs_data_quick<- 
+  select(transformed_imputed, 
+         X..High.Needs,
+         X..Economically.Disadvantaged,
+         Average.Class.Size,
+         Average.Salary,
+         Average.In.District.Expenditures.per.Pupil,
+         Average.Expenditures.per.Pupil,
+         Average.SAT_Math)
+
+correlations_quick<-cor(x=hs_data_quick, use = "pairwise")
+corrplot(correlations_quick, method = "circle", order= "hclust")
+
+#correlations on clusters 
+hs_data_Cluster1<- 
+  select(transformed_imputed, 
+         X..High.Needs,
+         X..Economically.Disadvantaged,
+         Average.Class.Size,
+         Average.Salary,
+         Average.In.District.Expenditures.per.Pupil,
+         Average.Expenditures.per.Pupil,
+         Average.SAT_Math,
+         kmeans) %>%
+  filter(kmeans == 1)
+
+#linear regression cluster 1
+linear_cluster1 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = hs_data_Cluster1)
+summary(linear_cluster1)
+
+correlations_cluster1<-cor(x=hs_data_Cluster1[1:7,], use = "pairwise")
+corrplot(correlations_cluster1, method = "circle", order= "hclust")
+
+hs_data_Cluster2<- 
+  select(transformed_imputed, 
+         X..High.Needs,
+         X..Economically.Disadvantaged,
+         Average.Class.Size,
+         Average.Salary,
+         Average.In.District.Expenditures.per.Pupil,
+         Average.Expenditures.per.Pupil,
+         Average.SAT_Math,
+         kmeans) %>%
+  filter(kmeans == 2)
+
+#linear regression cluster 2 
+linear_cluster2 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = hs_data_Cluster2)
+summary(linear_cluster2)
+
+correlations_cluster2<-cor(x=hs_data_Cluster2, use = "pairwise")
+corrplot(correlations_cluster2, method = "circle", order= "hclust")
+
 #graph clusters 
 p<- ggplot(transformed_imputed, aes(Average.Class.Size, Average.SAT_Math))
 p + geom_point()
@@ -328,13 +418,30 @@ p + geom_point(aes(color = factor(kmeans)))
 
 
 p<- ggplot(transformed_imputed, aes(Average.SAT_Math, X..Economically.Disadvantaged))
-p + geom_point() + labs(title = "% of Economically Disadvantaged vs. Average SAT Math Scores")
+p + geom_point()+
+  geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "% of Economically Disadvantaged vs. Average SAT Math Scores")
 
 p<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Salary))
-p + geom_point()
+p + geom_point() + 
+  geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "Average.Salary vs. Average SAT Math Scores")
 
 p<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Class.Size))
-p + geom_point()
+p + geom_point()+ 
+  geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "Average.Class.Size vs. Average SAT Math Scores")
+
+p<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Expenditures.per.Pupil))
+p + geom_point()+ 
+  geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "Average.Expenditures.per.Pupil vs. Average SAT Math Scores")
+
+
+p<- ggplot(transformed_imputed, aes(X..Economically.Disadvantaged, Average.Expenditures.per.Pupil))
+p + geom_point()+
+  geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "Average.Expenditures.per.Pupil vs. Economically Disadvantaged")
 
 
 p<- ggplot(transformed_imputed, aes(Average.Class.Size, Average.SAT_Math))
@@ -345,6 +452,9 @@ p<- ggplot(transformed_imputed, aes(Average.SAT_Math, X..Hispanic))
 p + geom_point(aes(color = factor(kmeans)))
 
 p<- ggplot(transformed_imputed, aes(Average.SAT_Math, X..Economically.Disadvantaged))
+p + geom_point(aes(color = factor(kmeans))) +  labs(title = "% of Economically Disadvantaged vs. Average SAT Math Scores")
+
+p<- ggplot(transformed_imputed, aes(Average.Expenditures.per.Pupil, X..Economically.Disadvantaged))
 p + geom_point(aes(color = factor(kmeans))) +  labs(title = "% of Economically Disadvantaged vs. Average SAT Math Scores")
 
 #p<- ggplot(transformed_imputed, aes(Average.SAT_Math, X..Economically.Disadvantaged))
@@ -384,10 +494,13 @@ p + geom_point(aes(color = factor(kmeans)))+ labs(title = "Average Teacher Salar
   facet_wrap(~kmeans)
 
 p<- ggplot(hs_data_ready, aes(Average.SAT_Math, Average.Salary)) 
-p+geom_point()
+p+geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
 
 p<- ggplot(hs_data_ready, aes(Average.SAT_Math, Average.Class.Size)) 
-p+geom_point()
+p+geom_point(method = "lm")+
+  geom_smooth(method = "lm", se = FALSE)
+
 
 summary(hs_data_ready)
 hist(hs_data_ready$Average.Class.Size)
@@ -406,6 +519,11 @@ p + geom_point(aes(color = factor(kmeans)))+ labs(title = "Econ disadvtanged vs.
 
 #clean facet wrap
 p<- ggplot(transformed_imputed, aes(X..Economically.Disadvantaged, Average.Expenditures.per.Pupil, color = kmeans))
+p + geom_point(aes(color = factor(kmeans)))+ labs(title = "Econ disadvtanged vs. Average Expenditure per Pupil")+
+  geom_smooth(aes(group=kmeans), method = "lm", se = FALSE) +
+  facet_wrap(~kmeans)
+
+p<- ggplot(transformed_imputed, aes(Average.Salary, Average.Class.Size, color = kmeans))
 p + geom_point(aes(color = factor(kmeans)))+ labs(title = "Econ disadvtanged vs. Average Expenditure per Pupil")+
   geom_smooth(aes(group=kmeans), method = "lm", se = FALSE) +
   facet_wrap(~kmeans)
@@ -435,7 +553,5 @@ p + geom_point(aes(color = factor(kmeans)))
 
 #dam this needs to be declared before normalizing
 within(transformed_imputed, rm(salary_class_size))
-
-install.packages("flexdashboard")
 
 
