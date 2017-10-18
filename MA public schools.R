@@ -46,7 +46,7 @@ hs_data_ready<-
          #School.Code, Zip, 
          #District.Code,
          #SP_Enrollment, 
-         #TOTAL_Enrollment, 
+         TOTAL_Enrollment, 
          X..First.Language.Not.English,
          X..High.Needs,
          X..Economically.Disadvantaged,
@@ -72,7 +72,8 @@ hs_data_ready<-
          X..AP_Score.3.5,
          SAT_Tests.Taken,
          Average.SAT_Reading,
-         Average.SAT_Math)
+         Average.SAT_Math) #%>%
+  #mutate(salary_to_size = Average.Salary/Average.Class.Size)
 
 hs_data_ready1<- 
   select(hs_corr_data_cl, 
@@ -347,6 +348,13 @@ transformed_imputed$kmeans <- as.factor(school_k_clusters)
 transformed_imputed$kmeans
 str(transformed_imputed$kmeans)
 
+tapply(transformed_imputed, kmeans, mean)
+summary(transformed_imputed)
+
+summary <-transformed_imputed %>%
+  group_by(kmeans) %>%
+  summarize_all(funs(mean)) 
+
 #graphing frequency of each cluster
 ggplot(transformed_imputed, aes(x=kmeans)) +
   geom_bar(width = 0.5) +
@@ -356,6 +364,7 @@ ggplot(transformed_imputed, aes(x=kmeans)) +
 #correlations on imputed values
 hs_data_quick<- 
   select(transformed_imputed, 
+         TOTAL_Enrollment,
          X..High.Needs,
          X..Economically.Disadvantaged,
          Average.Class.Size,
@@ -415,6 +424,20 @@ p<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Class.Size))
 p + geom_point()
 p + geom_point(aes(color = factor(kmeans)))
 
+p<- ggplot(transformed_imputed, aes(Average.SAT_Math, salary_to_size))
+p + geom_point()
+p + geom_point(aes(color = factor(kmeans)))
+
+p<- ggplot(transformed_imputed, aes(Average.SAT_Math, TOTAL_Enrollment))
+p + geom_point() + geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "Total Enrollment vs. Average SAT Math Scores")
+  
+#p + geom_point(aes(color = factor(kmeans)))
+
+p<- ggplot(transformed_imputed, aes(Average.SAT_Math, TOTAL_Enrollment))
+p + geom_point()
+p + geom_point(aes(color = factor(kmeans)))
+
 
 
 p<- ggplot(transformed_imputed, aes(Average.SAT_Math, X..Economically.Disadvantaged))
@@ -452,7 +475,20 @@ p<- ggplot(transformed_imputed, aes(Average.SAT_Math, X..Hispanic))
 p + geom_point(aes(color = factor(kmeans)))
 
 p<- ggplot(transformed_imputed, aes(Average.SAT_Math, X..Economically.Disadvantaged))
-p + geom_point(aes(color = factor(kmeans))) +  labs(title = "% of Economically Disadvantaged vs. Average SAT Math Scores")
+p + geom_point(aes(color = factor(kmeans))) +  
+  labs(title = "% of Economically Disadvantaged vs. Average SAT Math Scores")
+
+p<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Salary))
+p + geom_point(aes(color = factor(kmeans))) +  
+  labs(title = "Average Teacher Salary vs. Average SAT Math Scores")
+
+p<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Class.Size))
+p + geom_point(aes(color = factor(kmeans))) +  
+  labs(title = "Average Class Size vs. Average SAT Math Scores")
+
+p<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Class.Size))
+p + geom_point(aes(color = factor(kmeans))) +  
+  labs(title = "Average Class Size vs. Average SAT Math Scores")
 
 p<- ggplot(transformed_imputed, aes(Average.Expenditures.per.Pupil, X..Economically.Disadvantaged))
 p + geom_point(aes(color = factor(kmeans))) +  labs(title = "% of Economically Disadvantaged vs. Average SAT Math Scores")
@@ -529,9 +565,18 @@ p + geom_point(aes(color = factor(kmeans)))+ labs(title = "Econ disadvtanged vs.
   facet_wrap(~kmeans)
 
 #linear regression
-linear <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = transformed_imputed)
+transformed_imputed$Salary_to_size = transformed_imputed$Average.Salary/transformed_imputed$Average.Class.Size
+linear <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size + Average.Salary/Average.Class.Size , data = transformed_imputed)
 print(linear)
 summary(linear)
+
+linear_others <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Expenditures.per.Pupil + 
+               TOTAL_Enrollment, data = transformed_imputed)
+summary(linear_others)
+
+linear_final <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Expenditures.per.Pupil + 
+                     Average.Class.Size + Average.Expenditures.per.Pupil * Average.Class.Size, data = transformed_imputed)
+summary(linear_final)
 
 #use rmarkdown to creat dashboard
 #http://rmarkdown.rstudio.com/flexdashboard/
