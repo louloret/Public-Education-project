@@ -6,7 +6,7 @@ data <- read.csv("MA_Public_Schools_2017.csv")
 str(data)
 
 #explore correlations across variables
-#install.packages("corrplot")
+install.packages("corrplot")
 library(corrplot)
 correlations<- cor(data)
 corrplot(correlations, order="hclust")
@@ -39,7 +39,7 @@ hs_corr_data_cl <- hs_corr_data[colSums(!is.na(hs_corr_data)) > 40]
 #install.packages("sqldf")
 library(sqldf)
 
-#install.packages("dplyr")
+install.packages("dplyr")
 library(dplyr)
 hs_data_ready<- 
   select(hs_corr_data_cl, 
@@ -73,7 +73,7 @@ hs_data_ready<-
          SAT_Tests.Taken,
          Average.SAT_Reading,
          Average.SAT_Math) #%>%
-  #mutate(salary_to_size = Average.Salary/Average.Class.Size)
+#mutate(salary_to_size = Average.Salary/Average.Class.Size)
 
 hs_data_ready1<- 
   select(hs_corr_data_cl, 
@@ -219,7 +219,10 @@ hist(na_salary$X..Economically.Disadvantaged,
 hs_data_ready$salary_class_size <- hs_data_ready$Average.Salary/Average.SAT_Math$Average.Class.Size
 
 #let us normalize & impute
+install.packages('caret')
+install.packages('e1071')
 library(caret)
+library(e1071)
 #look at difference between imputed and non imputed normalized data
 trans <- preProcess(hs_data_ready,
                     method = c("BoxCox", "center", "scale"))
@@ -233,7 +236,7 @@ transformed_imputed <- predict(trans_impute, hs_data_ready)
 
 trans
 
-#install.packages("RANN")
+install.packages("RANN")
 library(RANN)
 transformed <- predict(trans, hs_data_ready)
 transformed_imputed <- predict(trans_impute, hs_data_ready)
@@ -339,6 +342,7 @@ tapply(transformed_imputed$X..Hispanic, school_k_clusters, mean)
 tapply(transformed_imputed$X..African.American, school_k_clusters, mean)
 
 #summary of each variable by cluster
+install.packages('tidyverse')
 library(purrr)
 
 transformed_imputed %>% split(.$kmeans) %>% map(summary)
@@ -392,6 +396,12 @@ hs_data_Cluster1<-
 #linear regression cluster 1
 linear_cluster1 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = hs_data_Cluster1)
 summary(linear_cluster1)
+#diagnostics cluster 1
+#leverage 1
+lev1 <- hat(model.matrix(linear_cluster1))
+plot(lev1)
+#residual plot 1
+plot(linear_cluster1$fitted, linear_cluster1$res)
 
 correlations_cluster1<-cor(x=hs_data_Cluster1[1:7,], use = "pairwise")
 corrplot(correlations_cluster1, method = "circle", order= "hclust")
@@ -431,7 +441,7 @@ p + geom_point(aes(color = factor(kmeans)))
 p<- ggplot(transformed_imputed, aes(Average.SAT_Math, TOTAL_Enrollment))
 p + geom_point() + geom_smooth(method = "lm", se = FALSE)+
   labs(title = "Total Enrollment vs. Average SAT Math Scores")
-  
+
 #p + geom_point(aes(color = factor(kmeans)))
 
 p<- ggplot(transformed_imputed, aes(Average.SAT_Math, TOTAL_Enrollment))
@@ -571,7 +581,7 @@ print(linear)
 summary(linear)
 
 linear_others <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Expenditures.per.Pupil + 
-               TOTAL_Enrollment, data = transformed_imputed)
+                      TOTAL_Enrollment, data = transformed_imputed)
 summary(linear_others)
 
 linear_final <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Expenditures.per.Pupil + 
@@ -600,3 +610,15 @@ p + geom_point(aes(color = factor(kmeans)))
 within(transformed_imputed, rm(salary_class_size))
 
 
+© 2017 GitHub, Inc.
+Terms
+Privacy
+Security
+Status
+Help
+Contact GitHub
+API
+Training
+Shop
+Blog
+About
