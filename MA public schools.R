@@ -393,14 +393,23 @@ hs_data_Cluster1<-
          kmeans) %>%
   filter(kmeans == 1)
 
+#correlation matrix cluster 1
+correlations_1<-cor(x=hs_data_Cluster1[1:7], use = "pairwise")
+corrplot(correlations_1, method = "circle", order= "hclust")
+
 #linear regression cluster 1
 linear_cluster1 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = hs_data_Cluster1)
 summary(linear_cluster1)
+cluster_1_test <- lm(Average.Salary ~ X..Economically.Disadvantaged + Average.SAT_Math + Average.Class.Size, data = hs_data_Cluster1)
+summary(cluster_1_test)
 #diagnostics cluster 1
 #leverage 1
 lev1 <- hat(model.matrix(linear_cluster1))
 plot(lev1)
-#residual plot 1
+#zero conditional mean of errors ---> E[Ui|Xi] = 0 
+par(mfrow = c(1,1))
+plot(hs_data_Cluster1$Average.Salary, linear_cluster1$res)
+#residual plots 1
 plot(linear_cluster1$fitted, linear_cluster1$res)
 
 correlations_cluster1<-cor(x=hs_data_Cluster1[1:7,], use = "pairwise")
@@ -610,15 +619,3 @@ p + geom_point(aes(color = factor(kmeans)))
 within(transformed_imputed, rm(salary_class_size))
 
 
-© 2017 GitHub, Inc.
-Terms
-Privacy
-Security
-Status
-Help
-Contact GitHub
-API
-Training
-Shop
-Blog
-About
