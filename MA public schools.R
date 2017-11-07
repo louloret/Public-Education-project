@@ -398,7 +398,7 @@ correlations_1<-cor(x=hs_data_Cluster1[1:7], use = "pairwise")
 corrplot(correlations_1, method = "circle", order= "hclust")
 
 #linear regression cluster 1
-linear_cluster1 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = hs_data_Cluster1)
+linear_cluster1 <- lm(Average.SAT_Math~ Average.Class.Size + Average.Expenditures.per.Pupil, data = hs_data_Cluster1)
 summary(linear_cluster1)
 cluster_1_test <- lm(Average.Salary ~ X..Economically.Disadvantaged + Average.SAT_Math + Average.Class.Size, data = hs_data_Cluster1)
 summary(cluster_1_test)
@@ -409,11 +409,18 @@ plot(lev1)
 #zero conditional mean of errors ---> E[Ui|Xi] = 0 
 par(mfrow = c(1,1))
 plot(hs_data_Cluster1$Average.Salary, linear_cluster1$res)
+
 #residual plots 1
 plot(linear_cluster1$fitted, linear_cluster1$res)
 
 correlations_cluster1<-cor(x=hs_data_Cluster1[1:7,], use = "pairwise")
 corrplot(correlations_cluster1, method = "circle", order= "hclust")
+
+cor.test(hs_data_Cluster1$X..Economically.Disadvantaged, hs_data_Cluster1$Average.Class.Size, method = c("pearson"))
+
+#plot potential bias cluster 1
+p<- ggplot(hs_data_Cluster1, aes(Average.Salary, Average.SAT_Math))
+p + geom_point(aes(color = factor(kmeans))) 
 
 hs_data_Cluster2<- 
   select(transformed_imputed, 
@@ -431,8 +438,19 @@ hs_data_Cluster2<-
 linear_cluster2 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = hs_data_Cluster2)
 summary(linear_cluster2)
 
-correlations_cluster2<-cor(x=hs_data_Cluster2, use = "pairwise")
+correlations_cluster2<-cor(x=hs_data_Cluster2[1:7], use = "pairwise")
 corrplot(correlations_cluster2, method = "circle", order= "hclust")
+
+p<- ggplot(transformed_imputed, aes(X..Economically.Disadvantaged, Average.Class.Size, color = kmeans))
+p + geom_point(aes(color = factor(kmeans)))+ labs(title = "Econ disadvtanged vs. Average Class Size")+
+  geom_smooth(aes(group=kmeans), method = "lm", se = FALSE) +
+  facet_wrap(~kmeans)
+
+p<- ggplot(transformed_imputed, aes(X..Economically.Disadvantaged, Average.Salary, color = kmeans))
+p + geom_point(aes(color = factor(kmeans)))+ labs(title = "Econ disadvtanged vs. Average Teacher Salary")+
+  geom_smooth(aes(group=kmeans), method = "lm", se = FALSE) +
+  facet_wrap(~kmeans)
+
 
 #graph clusters 
 p<- ggplot(transformed_imputed, aes(Average.Class.Size, Average.SAT_Math))
@@ -578,8 +596,13 @@ p + geom_point(aes(color = factor(kmeans)))+ labs(title = "Econ disadvtanged vs.
   geom_smooth(aes(group=kmeans), method = "lm", se = FALSE) +
   facet_wrap(~kmeans)
 
-p<- ggplot(transformed_imputed, aes(Average.Salary, Average.Class.Size, color = kmeans))
-p + geom_point(aes(color = factor(kmeans)))+ labs(title = "Econ disadvtanged vs. Average Expenditure per Pupil")+
+p<- ggplot(transformed_imputed, aes(X..Economically.Disadvantaged, Average.Class.Size, color = kmeans))
+p + geom_point(aes(color = factor(kmeans)))+ labs(title = "Econ disadvtanged vs. Average Class Size")+
+  geom_smooth(aes(group=kmeans), method = "lm", se = FALSE) +
+  facet_wrap(~kmeans)
+
+p<- ggplot(transformed_imputed, aes(X..Economically.Disadvantaged, Average.Salary, color = kmeans))
+p + geom_point(aes(color = factor(kmeans)))+ labs(title = "Econ disadvtanged vs. Average Teacher Salary")+
   geom_smooth(aes(group=kmeans), method = "lm", se = FALSE) +
   facet_wrap(~kmeans)
 
