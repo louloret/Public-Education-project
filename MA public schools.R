@@ -408,7 +408,9 @@ lev1 <- hat(model.matrix(linear_cluster1))
 plot(lev1)
 #zero conditional mean of errors ---> E[Ui|Xi] = 0 
 par(mfrow = c(1,1))
+plot(hs_data_Cluster1$X..Economically.Disadvantaged, linear_cluster1$res)
 plot(hs_data_Cluster1$Average.Salary, linear_cluster1$res)
+plot(hs_data_Cluster1$Average.Class.Size, linear_cluster1$res)
 
 #residual plots 1
 plot(linear_cluster1$fitted, linear_cluster1$res)
@@ -420,7 +422,7 @@ cor.test(hs_data_Cluster1$X..Economically.Disadvantaged, hs_data_Cluster1$Averag
 
 #plot potential bias cluster 1
 p<- ggplot(hs_data_Cluster1, aes(Average.Salary, Average.SAT_Math))
-p + geom_point(aes(color = factor(kmeans))) 
+p + geom_point(aes(color = factor(kmeans))) + geom_smooth(method = "lm", se = FALSE)
 
 hs_data_Cluster2<- 
   select(transformed_imputed, 
@@ -435,11 +437,23 @@ hs_data_Cluster2<-
   filter(kmeans == 2)
 
 #linear regression cluster 2 
+correlations_2<-cor(x=hs_data_Cluster2[1:7], use = "pairwise")
+corrplot(correlations_2, method = "circle", order= "hclust")
+
 linear_cluster2 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = hs_data_Cluster2)
 summary(linear_cluster2)
 
 correlations_cluster2<-cor(x=hs_data_Cluster2[1:7], use = "pairwise")
 corrplot(correlations_cluster2, method = "circle", order= "hclust")
+
+#zero conditional mean of errors ---> E[Ui|Xi] = 0 
+par(mfrow = c(1,1))
+plot(hs_data_Cluster2$X..Economically.Disadvantaged, linear_cluster2$res)
+plot(hs_data_Cluster2$Average.Salary, linear_cluster2$res)
+plot(hs_data_Cluster2$Average.Class.Size, linear_cluster2$res)
+
+#residual plots 2
+plot(linear_cluster2$fitted, linear_cluster2$res)
 
 p<- ggplot(transformed_imputed, aes(X..Economically.Disadvantaged, Average.Class.Size, color = kmeans))
 p + geom_point(aes(color = factor(kmeans)))+ labs(title = "Econ disadvtanged vs. Average Class Size")+
