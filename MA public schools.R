@@ -236,7 +236,7 @@ transformed_imputed <- predict(trans_impute, hs_data_ready)
 
 trans
 
-install.packages("RANN")
+#install.packages("RANN")
 library(RANN)
 transformed <- predict(trans, hs_data_ready)
 transformed_imputed <- predict(trans_impute, hs_data_ready)
@@ -342,7 +342,7 @@ tapply(transformed_imputed$X..Hispanic, school_k_clusters, mean)
 tapply(transformed_imputed$X..African.American, school_k_clusters, mean)
 
 #summary of each variable by cluster
-install.packages('tidyverse')
+#install.packages('tidyverse')
 library(purrr)
 
 transformed_imputed %>% split(.$kmeans) %>% map(summary)
@@ -446,14 +446,78 @@ summary(linear_cluster2)
 correlations_cluster2<-cor(x=hs_data_Cluster2[1:7], use = "pairwise")
 corrplot(correlations_cluster2, method = "circle", order= "hclust")
 
+#residual plots 2
+plot(linear_cluster2$fitted, linear_cluster2$res)
+
 #zero conditional mean of errors ---> E[Ui|Xi] = 0 
 par(mfrow = c(1,1))
 plot(hs_data_Cluster2$X..Economically.Disadvantaged, linear_cluster2$res)
 plot(hs_data_Cluster2$Average.Salary, linear_cluster2$res)
 plot(hs_data_Cluster2$Average.Class.Size, linear_cluster2$res)
 
-#residual plots 2
-plot(linear_cluster2$fitted, linear_cluster2$res)
+
+hs_data_Cluster3<- 
+  select(transformed_imputed, 
+         X..High.Needs,
+         X..Economically.Disadvantaged,
+         Average.Class.Size,
+         Average.Salary,
+         Average.In.District.Expenditures.per.Pupil,
+         Average.Expenditures.per.Pupil,
+         Average.SAT_Math,
+         kmeans) %>%
+  filter(kmeans == 3)
+
+#linear regression cluster 3 
+correlations_3<-cor(x=hs_data_Cluster3[1:7], use = "pairwise")
+corrplot(correlations_3, method = "circle", order= "hclust")
+
+linear_cluster3 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = hs_data_Cluster3)
+summary(linear_cluster3)
+
+correlations_cluster3<-cor(x=hs_data_Cluster3[1:7], use = "pairwise")
+corrplot(correlations_cluster3, method = "circle", order= "hclust")
+
+#residual plots 3
+plot(linear_cluster3$fitted, linear_cluster3$res)
+
+#zero conditional mean of errors ---> E[Ui|Xi] = 0 
+par(mfrow = c(1,1))
+plot(hs_data_Cluster3$X..Economically.Disadvantaged, linear_cluster3$res)
+plot(hs_data_Cluster3$Average.Salary, linear_cluster3$res)
+plot(hs_data_Cluster3$Average.Class.Size, linear_cluster3$res)
+
+
+hs_data_Cluster4<- 
+  select(transformed_imputed, 
+         X..High.Needs,
+         X..Economically.Disadvantaged,
+         Average.Class.Size,
+         Average.Salary,
+         Average.In.District.Expenditures.per.Pupil,
+         Average.Expenditures.per.Pupil,
+         Average.SAT_Math,
+         kmeans) %>%
+  filter(kmeans == 4)
+
+#linear regression cluster 4 
+correlations_4<-cor(x=hs_data_Cluster4[1:7], use = "pairwise")
+corrplot(correlations_4, method = "circle", order= "hclust")
+
+linear_cluster4 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = hs_data_Cluster4)
+summary(linear_cluster4)
+
+correlations_cluster4<-cor(x=hs_data_Cluster4[1:7], use = "pairwise")
+corrplot(correlations_cluster4, method = "circle", order= "hclust")
+
+#residual plots 4
+plot(linear_cluster4$fitted, linear_cluster4$res)
+
+#zero conditional mean of errors ---> E[Ui|Xi] = 0 
+par(mfrow = c(1,1))
+plot(hs_data_Cluster4$X..Economically.Disadvantaged, linear_cluster4$res)
+plot(hs_data_Cluster4$Average.Salary, linear_cluster4$res)
+plot(hs_data_Cluster4$Average.Class.Size, linear_cluster4$res)
 
 p<- ggplot(transformed_imputed, aes(X..Economically.Disadvantaged, Average.Class.Size, color = kmeans))
 p + geom_point(aes(color = factor(kmeans)))+ labs(title = "Econ disadvtanged vs. Average Class Size")+
@@ -656,3 +720,15 @@ p + geom_point(aes(color = factor(kmeans)))
 within(transformed_imputed, rm(salary_class_size))
 
 
+© 2017 GitHub, Inc.
+Terms
+Privacy
+Security
+Status
+Help
+Contact GitHub
+API
+Training
+Shop
+Blog
+About
