@@ -1,14 +1,96 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Exploratory Analysis SAT scores in Public Highschools"
+output:
+  html_document:
+    fig_height: 4
+    fig_width: 7
+    theme: cosmo
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
 
+## Reading the data
 Load data
 ```{r}
 data <- read.csv("MA_Public_Schools_2017.csv")
 str(data)
+```
+## factors are present
+```{r}
+summary(data$AP_Test.Takers)
+summary(data$Grade)  
+```
+
+## Subsetting to Highschools and variables of numerical value
+```{r}
+hs_data <- subset(data, X12_Enrollment > 0)
+num <- sapply(hs_data, is.numeric)
+hs_corr_data <- hs_data[,num]
+
+hs_corr_data$AP_Test.Takers <- as.numeric(hs_data$AP_Test.Takers)
+hs_corr_data$AP_Tests.Taken <- as.numeric(hs_data$AP_Tests.Taken)
+hs_corr_data_cl <- hs_corr_data[colSums(!is.na(hs_corr_data)) > 40]
+```
+
+## Selecting numerical values from data for analysis
+```{r}
+hs_data_ready<- 
+  select(hs_corr_data_cl, 
+         #School.Code, Zip, 
+         #District.Code,
+         #SP_Enrollment, 
+         TOTAL_Enrollment, 
+         X..First.Language.Not.English,
+         X..High.Needs,
+         X..Economically.Disadvantaged,
+         X..African.American,
+         X..Asian,
+         X..Hispanic,
+         X..White,
+         X..Multi.Race..Non.Hispanic,
+         X..Males,
+         X..Females,
+         Average.Class.Size,
+         Average.Salary,
+         Average.In.District.Expenditures.per.Pupil,
+         Average.Expenditures.per.Pupil,
+         X..in.Cohort,
+         X..GED,
+         X..Non.Grad.Completers,
+         X..Dropped.Out,
+         X..Attending.College,
+         X..Private.Four.Year,
+         X..Public.Four.Year,
+         X..MA.Community.College,
+         X..AP_Score.3.5,
+         SAT_Tests.Taken,
+         Average.SAT_Reading,
+         Average.SAT_Math) 
+```
+
+## Exploring Missing Test Scores
+
+Public schools with missing SAT & AP scores tend to come from schools with higher % of Economically disadvantaged students
+
+The data-set only contains 394 high-schools, and the total number of high schools missing SAT test scores is 62. Meaning if we simply drop the schools with missing SAT scores I lose about 16% of my total observations.
+
+```{r}
+
+Data_na_scores <-
+  hs_data_ready %>% 
+  select( everything() ) %>%
+  filter(is.na(Average.SAT_Math) 
+         & is.na(Average.SAT_Reading) 
+         & is.na(X..AP_Score.3.5))
+
+hist(hs_data_ready$X..Economically.Disadvantaged,
+     xlab = "% Of Econ Disadvantaged Students",
+     main = "All Schools")
+
+hist(Data_na_scores$X..Economically.Disadvantaged, 
+     xlab = "% Of Econ Disadvantaged Students",
+     main = "Schools with Missing scores")
 ```
