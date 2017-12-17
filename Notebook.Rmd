@@ -71,7 +71,7 @@ hs_data_ready<-
          Average.SAT_Math) 
 ```
 
-## Exploring Missing Test Scores
+## Exploring Missing Data
 
 Public schools with missing SAT & AP scores tend to come from schools with higher % of Economically disadvantaged students
 
@@ -85,12 +85,94 @@ Data_na_scores <-
   filter(is.na(Average.SAT_Math) 
          & is.na(Average.SAT_Reading) 
          & is.na(X..AP_Score.3.5))
-
-hist(hs_data_ready$X..Economically.Disadvantaged,
-     xlab = "% Of Econ Disadvantaged Students",
-     main = "All Schools")
-
-hist(Data_na_scores$X..Economically.Disadvantaged, 
-     xlab = "% Of Econ Disadvantaged Students",
-     main = "Schools with Missing scores")
 ```
+
+### All Schools vs. Schools with missing scores
+```{r}
+
+summary(hs_data_ready$X..Economically.Disadvantaged)
+
+
+hs_data_ready %>%
+  ggplot(aes(x=X..Economically.Disadvantaged)) + 
+  ggtitle("All Schools") +
+  geom_histogram(bins=20, fill = "red") +
+  theme_bw()+theme(axis.title = element_text(size=16),axis.text = element_text(size=14))+
+  ylab("Count") 
+
+
+Data_na_scores %>%
+  ggplot(aes(x=X..Economically.Disadvantaged)) + 
+  ggtitle("Schools with missing scores") +
+  geom_histogram(bins=20, fill = "red") +
+  theme_bw()+theme(axis.title = element_text(size=16),axis.text = element_text(size=14))+
+  ylab("Count") 
+```
+
+```
+
+Instead I used the K Nearest Neighbor algorithm to impute the missing values. 
+
+
+
+#let us normalize & impute
+
+```{r}
+library(caret)
+
+
+trans_impute <- preProcess(hs_data_ready,
+                           method = c("BoxCox", "center", "scale", "knnImpute"))
+transformed_imputed <- predict(trans_impute, hs_data_ready)
+```
+
+
+### Comparing Original data and imputed & normalized data
+
+Original Data
+``` {r}
+
+boxplot(hs_data_ready$X..Economically.Disadvantaged)
+
+hs_data_ready %>%
+  ggplot(aes(x=X..Economically.Disadvantaged)) + 
+  ggtitle("Original Data") +
+  geom_histogram(bins=20, fill = "red") +
+  theme_bw()+theme(axis.title = element_text(size=16),axis.text = element_text(size=14))+
+  ylab("Count") 
+```
+
+Imputed and Normalized data
+``` {r}
+boxplot(transformed_imputed$X..Economically.Disadvantaged)
+
+transformed_imputed %>%
+  ggplot(aes(x=X..Economically.Disadvantaged)) + 
+  ggtitle("Imputed & Normalized data") +
+  geom_histogram(bins=20, fill = "red") +
+  theme_bw()+theme(axis.title = element_text(size=16),axis.text = element_text(size=14))+
+  ylab("Count") 
+
+## Relationships of Interest 
+
+SAT Math scores were the variable of interest in these examples, since AP scores, SAT Reading and SAT Math are all highly correlated, it doesn’t really matter which of the 3 we use
+
+```{r}
+hs_data_quick<- 
+  select(transformed_imputed, 
+         TOTAL_Enrollment,
+         X..High.Needs,
+         X..Economically.Disadvantaged,
+         Average.Class.Size,
+         Average.Salary,
+         Average.In.District.Expenditures.per.Pupil,
+         Average.Expenditures.per.Pupil,
+         Average.SAT_Math)
+
+correlations_quick<-cor(x=hs_data_quick, use = "pairwise")
+corrplot(correlations_quick, method = "circle", order= "hclust")
+```
+
+Expenditures per pupil are highly correlated with teacher salary, but not correlated at all with class size. Seems like teacher salary affects the public budget a lot more than class size does.
+
+Average SAT math shows a slight negative correlation with expenditure variables. This may be due to higher expenditures in schools with more “high needs” students (as shown by correlation above), thus the expenditure vs. SAT score relationship is really dominated by the socioeconomic vs. SAT score relationship ( I will come back to this)
