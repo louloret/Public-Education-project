@@ -207,6 +207,159 @@ Let’s test these two groups while controlling for Economic disadvantage.
 
 note: Since the two groups are correlated, I tested them by running two different regressions and seeing how much each variable contributed to SAT scores while controlling for Economic disadvantage.
 
-linear_cluster1 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = hs_data_Cluster1)
-summary(linear_cluster1)
+First Group
+```{r}
+lm1 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = transformed_imputed)
+summary(lm1)
+```
+Second Group
+```{r}
+lm2 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Expenditures.per.Pupil + TOTAL_Enrollment, data = transformed_imputed)
+summary(lm2)
+```
+Seems like Average Expenditure per pupil does a better job at explaining variation in SAT test scores than Average Salary, even while controlling for economic disadvantage. The relationship is still negative though, meaning a 1 standard deviation increase in avg. expenditure per pupil is associated with a .083 standard deviation decrease in Average Math SAT scores (holding econ disadvantage & total enrollment constant)… kind of counter intuitive( I will come back to this)
+
+Average Class size seems to explain more variation in Average Math SAT scores than TOTAL_Enrollment, even though the scatter plot showed a stronger relationship between TOTAL_Enrollment & Average Math SAT scores. This is where the beauty of linear regressions come into play, when we control for economic disadvantage in a school , we see that Total enrollment becomes irrelevant. This implies that the relationship captured by the TOTAL_Enrollment vs. Average Math SAT scatter plot is mostly due to the fact that schools with higher Total enrollment tend to have less economically disadvantaged students as a % of their population .
+
+Based on our comparison, our final linear regression should include % of economic disadvantage, Average expenditure per pupil & Average.Class.Size.
+```{r}
+lm_combo <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Expenditures.per.Pupil + Average.Class.Size, data = transformed_imputed)
+summary(lm_combo)
+```
+I omitted Average.Salary because it was highly correlated with Average.Expenditure.Per.Pupil
+
+But wait…. why is the effect of Average Expenditure per pupil on SAT Math scores negative? Suggesting that the more we spend per pupil on average will tend to drive down Average Math SAT scores… This is counter intuitive (I will come back to this).
+
+The linear regression output also suggest almost all of the deviation in Average SAT Math Scores is due to % of Economically disadvantaged students. With 1 standard deviation increase in % of Economically disadvantaged students Average Math SAT scores decrease by about .82 standard deviations on average (holding expenditure and class size constant).
+
+We still have some explaining/exploring to do..
+
+## Cool visuals... so what?
+The economically disadvantaged & Average class size effect on Average SAT math scores make sense, but the Average Expenditure per Pupil effect on Average SAT Math does not.
+
+Something seems to be missing here. Even though we have a lot of information on each public highschool, we are merely comparing aggregate relationships and attempting to draw conclusions from them
+
+We have tons of information on each public school, let’s make better use of it.
+
+## Defining a school "type"
+We can distinguish highschool types based off the different characteristics available in the data set.
+
+I used hierarchical clustering to get an idea of how many “unique” types there are. The dendogram below illustrates the “uniqueness” or “purity” of each cluster by the vertical distance from the next break.
+
+```{r}
+#hierarichal clustering using euclidean distance 
+distances <- dist(transformed_imputed, method = "euclidean")
+cluster_schools <- hclust(distances, method = "ward.D")
+plot(cluster_schools)
+
+##### FAIR WARNING ####
+#you will have to use a different exploratory graphing algorithm for a project with larger data, hierarichal
+#clustering assigns each data point as a cluster and finds distances across all data points
+#making it very computationally expensive'''
+```
+
+This dendogram shows 4 clusters with clearly distinct vertical distances. The vertical distance between Cluster 4 and a potential Cluster 5 is nearly 0, implying similarities between the two clusters (aka lack of “uniqueness”). So I stuck to 4 “distinct” clusters, or in our context; 4 distinct school types.
+
+### Features of each school type
+
+
+```{r}
+#define new variable as cluster
+head(transformed_imputed)
+
+transformed_imputed$kmeans <- as.factor(school_k_clusters)
+transformed_imputed$kmeans
+
+str(transformed_imputed$kmeans)
+head(transformed_imputed)
+
+#Create data frame that contains mean of each variable
+#by cluster
+summary <-transformed_imputed %>%
+  group_by(kmeans) %>%
+  summarize_all(funs(mean)) 
+
+head(summary)
+
+#this tells you how the unique characteristics of each cluster
+```
+
+Taking a deeper look at the summary statistics across each cluster, I came to the conclusion on what characteristics defined the 4 clusters.
+Cluster 1(Low Income Rural Schools):
+Very high % of econ disadvantage students & high need students
+Extremely small total enrollment
+Mostly male students
+Mostly hispanic students
+Very small class sizes
+Relatively low teacher pay
+Very High drop out rate
+Very Low % of students attending college
+Low Math SAT scores
+
+Cluster 2:
+High % of econ disadvantaged student & high need students
+Slightly above average total enrollment
+Mostly African American & Hispanic Students
+Very large class sizes
+Very high teacher pay
+Average drop out rate
+Low % of students attending college
+Very Low Math SAT scores
+
+Cluster 3(elite schools):
+Very low % of economically disadvantaged students
+Large total enrollment
+Mostly Asian and White students
+Larger portion of females than males
+Above average class size
+Low drop out rate
+Very Large % of students attending college
+Above average teacher pay
+Very high Math SAT scores
+
+Cluster 4(avg schools):
+Avg % of econ disadvantage students
+Slightly below average Total Enrollment
+Mostly White students
+Slightly below Average Class sizes
+Very low teacher pay
+Slightly below average drop out rate
+Below Average % of students attending college
+Slightly below Avg Math SAT scores
+
+How many schools fell under each cluster?
+```{r}
+table(school_k_clusters)
+```
+
+## Relationships by school "type"
+Revisiting relationships of interest by school "type"
+```{r}
+ec<- ggplot(transformed_imputed, aes(Average.SAT_Math, X..Economically.Disadvantaged))
+ec + geom_point(aes(color = factor(kmeans))) +  
+  labs(title = "% of Economically Disadvantaged vs. Average SAT Math Scores")
+```
+
+We see the clusters reside where we expect them to. (for example cluster 3 aka elite schools having the lowest % of economically disadvantaged students and highest average of Math SAT scores)
+
+note: Cluster 1 shows schools with higher % of economically disadvantaged students than Cluster 2
+
+### Average Expenditure per Pupil and Average SAT Math scores
+```{r}
+exp<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Expenditures.per.Pupil))
+exp + geom_point(aes(color = factor(kmeans))) +  
+  labs(title = "Average Expenditure per Pupil vs. Average SAT Math Scores")
+```
+
+### Closer look
+```{r}
+exp_cl<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Expenditures.per.Pupil, color = kmeans))
+exp_cl + geom_point(aes(color = factor(kmeans)))+ labs(title = "Average Expenditure per Pupils vs. Average SAT Math Scores")+
+  geom_smooth(aes(group=kmeans), method = "lm", se = FALSE) +
+  facet_wrap(~kmeans)
+```
+As the regression output suggested, Expenditure per pupil is associated with lower Avg SAT Math scores for most schools.
+Our “Elite” group or Cluster 3 is the only cluster which shows a positive relationship between Expenditures and SAT scores.
+Maybe there is some reverse causality here.. Maybe the schools getting more funding tend to have a lower socioeconomic level and thus lower SAT scores.
+Let’s refer back to our correlation matrix to examine this assumption:
 
