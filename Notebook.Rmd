@@ -109,10 +109,7 @@ Data_na_scores %>%
   ylab("Count") 
 ```
 
-```
-
 Instead I used the K Nearest Neighbor algorithm to impute the missing values. 
-
 
 
 #let us normalize & impute
@@ -152,6 +149,7 @@ transformed_imputed %>%
   geom_histogram(bins=20, fill = "red") +
   theme_bw()+theme(axis.title = element_text(size=16),axis.text = element_text(size=14))+
   ylab("Count") 
+```
 
 ## Relationships of Interest 
 
@@ -176,3 +174,39 @@ corrplot(correlations_quick, method = "circle", order= "hclust")
 Expenditures per pupil are highly correlated with teacher salary, but not correlated at all with class size. Seems like teacher salary affects the public budget a lot more than class size does.
 
 Average SAT math shows a slight negative correlation with expenditure variables. This may be due to higher expenditures in schools with more “high needs” students (as shown by correlation above), thus the expenditure vs. SAT score relationship is really dominated by the socioeconomic vs. SAT score relationship ( I will come back to this)
+
+```{r}
+a<- ggplot(transformed_imputed, aes(Average.SAT_Math, X..Economically.Disadvantaged))
+a + geom_point()+
+  geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "% of Economically Disadvantaged vs. Average SAT Math Scores")
+
+b<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Salary))
+b + geom_point() + 
+  geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "Average.Salary vs. Average SAT Math Scores")
+
+c<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Class.Size))
+c + geom_point()+ 
+  geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "Average.Class.Size vs. Average SAT Math Scores")
+
+d<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Expenditures.per.Pupil))
+d + geom_point()+ 
+  geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "Average.Expenditures.per.Pupil vs. Average SAT Math Scores")
+
+e<- ggplot(transformed_imputed, aes(Average.SAT_Math, TOTAL_Enrollment))
+e + geom_point() + geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "Total Enrollment vs. Average SAT Math Scores")
+  
+```
+Scatter plots show a stronger relationship between Average SAT scores, (Expenditures per pupil & Total enrollment) than (Average Salary & Average Class size).
+
+Let’s test these two groups while controlling for Economic disadvantage.
+
+note: Since the two groups are correlated, I tested them by running two different regressions and seeing how much each variable contributed to SAT scores while controlling for Economic disadvantage.
+
+linear_cluster1 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = hs_data_Cluster1)
+summary(linear_cluster1)
+
