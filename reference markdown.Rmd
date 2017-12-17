@@ -153,7 +153,6 @@ We can see that there are always at least 3 prior orders.
 orders %>% filter(eval_set=="prior") %>% count(order_number) %>% ggplot(aes(order_number,n)) + geom_line(color="red", size=1)+geom_point(size=2, color="red")
 ```
 
-
 ### How many items do people buy? {.tabset}
 Let's have a look how many items are in the orders. We can see that people most often order around 5 items. The distributions are comparable between the train and prior order set.
 
