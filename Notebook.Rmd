@@ -362,4 +362,34 @@ As the regression output suggested, Expenditure per pupil is associated with low
 Our “Elite” group or Cluster 3 is the only cluster which shows a positive relationship between Expenditures and SAT scores.
 Maybe there is some reverse causality here.. Maybe the schools getting more funding tend to have a lower socioeconomic level and thus lower SAT scores.
 Let’s refer back to our correlation matrix to examine this assumption:
+```{r}
+corrplot(correlations_quick, method = "circle", order= "hclust")
+```
 
+Seems like the % of Economically disadvantaged students at your highschool is correlated with your Expenditure per Pupil ( even more correlated with In District Expenditure, but let’s focus on just Expenditure per pupil for simplicity sake)
+
+Let’s use a variable that is less correlated with the economic status of the students at a school, Average Salary seems to be a good alternative here.
+
+### Average Teacher Salary and Average SAT Math score
+```{r}
+salary<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Salary))
+salary + geom_point(aes(color = factor(kmeans))) +  
+  labs(title = "Average Teacher Salary vs. Average SAT Math Scores")
+```
+###Closer Look
+```{r}
+sal_cl<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Salary, color = kmeans))
+sal_cl + geom_point(aes(color = factor(kmeans)))+ labs(title = "Average Salary vs. Average SAT Math Scores")+
+  geom_smooth(aes(group=kmeans), method = "lm", se = FALSE) +
+  facet_wrap(~kmeans)
+```
+
+Still observing a less intense but similar relationship : Schools in Cluster 3 (elite schools) were the only schools to show a positive relationship between Average Salary and Average Math SAT scores.
+
+Cluster 4(average schools) has a good amount of variation across average salary with almost no change in Average SAT scores. Implying that increasing Avg Teacher salary does not do much to increase Avg SAT Math scores.
+
+Cluster 2’s trend line is dominated by the large amount of schools with high teacher salary and very poor Math SAT performance (seen at the top left). Outside of this, the relationship is less obvious.
+
+Cluster 1 (Rural & Low income schools) is showing a negative relationship between teacher salary and Avg SAT Math scores (as teacher salary goes up in Rural schools, Avg SAT Math scores go down, seems counter-intuitive).
+
+Inference: Increasing Average teacher pay tends to have a positive effect only at schools with the lowest portion of economically disadvantaged students (“elite” schools). This may be due to issues of discipline and class control at schools with a larger portion of economically disadvantaged students which mitigate the affect of more “valuable” teachers.
