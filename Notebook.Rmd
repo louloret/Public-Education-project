@@ -11,10 +11,11 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 ## Libraries I will be using
+```{r}
 library(ggplot2)
 library(caret)
 library(corrplot)
-
+```
 
 ## Reading the data
 Load data
