@@ -10,6 +10,10 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+## Libraries I will be using
+library(ggplot2)
+library(caret)
+library(corrplot)
 
 
 ## Reading the data
@@ -70,6 +74,7 @@ hs_data_ready<-
          Average.SAT_Reading,
          Average.SAT_Math) 
 ```
+Certain numerical variables were omitted for the analysis due to reduncancy, irrelevance and or lack of observations
 
 ## Exploring Missing Data
 
@@ -92,7 +97,6 @@ Data_na_scores <-
 
 summary(hs_data_ready$X..Economically.Disadvantaged)
 
-library(ggplot2)
 
 hs_data_ready %>%
   ggplot(aes(x=X..Economically.Disadvantaged)) + 
@@ -116,9 +120,6 @@ Instead I used the K Nearest Neighbor algorithm to impute the missing values.
 #let us normalize & impute
 
 ```{r}
-library(caret)
-
-
 trans_impute <- preProcess(hs_data_ready,
                            method = c("BoxCox", "center", "scale", "knnImpute"))
 transformed_imputed <- predict(trans_impute, hs_data_ready)
@@ -157,7 +158,7 @@ transformed_imputed %>%
 SAT Math scores were the variable of interest in these examples, since AP scores, SAT Reading and SAT Math are all highly correlated, it doesn’t really matter which of the 3 we use
 
 ```{r}
-library(corrplot)
+
 hs_data_quick<- 
   select(transformed_imputed, 
          TOTAL_Enrollment,
