@@ -1,0 +1,626 @@
+---
+title: "Exploratory Analysis SAT scores in Public Highschools"
+output:
+  html_document:
+    fig_height: 4
+    fig_width: 7
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Libraries I will be using
+```{r}
+library(ggplot2)
+library(caret)
+library(corrplot)
+library(dplyr)
+```
+
+## Reading the data
+Load data
+```{r read, results = "hide"}
+data <- read.csv('../input/MA_Public_Schools_2017.csv')
+str(data)
+```
+
+## factors are present
+Data is consists of all grade levels, we need to eventually filter down
+```{r}
+head(data$AP_Test.Takers)
+head(data$Grade)  
+```
+
+## Subsetting to Highschools and variables of numerical value
+```{r}
+hs_data <- subset(data, X12_Enrollment > 0)
+num <- sapply(hs_data, is.numeric)
+hs_corr_data <- hs_data[,num]
+
+hs_corr_data$AP_Test.Takers <- as.numeric(hs_data$AP_Test.Takers)
+hs_corr_data$AP_Tests.Taken <- as.numeric(hs_data$AP_Tests.Taken)
+hs_corr_data_cl <- hs_corr_data[colSums(!is.na(hs_corr_data)) > 40]
+```
+
+## Selecting numerical values from data for analysis
+```{r}
+hs_data_ready<- 
+  select(hs_corr_data_cl, 
+         #School.Code, Zip, 
+         #District.Code,
+         #SP_Enrollment, 
+         TOTAL_Enrollment, 
+         X..First.Language.Not.English,
+         X..High.Needs,
+         X..Economically.Disadvantaged,
+         X..African.American,
+         X..Asian,
+         X..Hispanic,
+         X..White,
+         #X..Multi.Race..Non.Hispanic,
+         X..Males,
+         X..Females,
+         Average.Class.Size,
+         Average.Salary,
+         Average.In.District.Expenditures.per.Pupil,
+         Average.Expenditures.per.Pupil,
+         #X..in.Cohort,
+         X..GED,
+         X..Non.Grad.Completers,
+         X..Dropped.Out,
+         X..Attending.College,
+         X..Private.Four.Year,
+         X..Public.Four.Year,
+         X..MA.Community.College,
+         X..AP_Score.3.5,
+         SAT_Tests.Taken,
+         Average.SAT_Reading,
+         Average.SAT_Math) 
+```
+Certain numerical variables were omitted for the analysis due to reduncancy, irrelevance and or lack of observations
+
+## Exploring Missing Data
+
+Public schools with missing SAT & AP scores tend to come from schools with higher % of Economically disadvantaged students
+
+The data-set only contains 394 high-schools, and the total number of high schools missing SAT test scores is 62. Meaning if we simply drop the schools with missing SAT scores I lose about 16% of my total observations.
+
+```{r}
+
+Data_na_scores <-
+  hs_data_ready %>% 
+  select( everything() ) %>%
+  filter(is.na(Average.SAT_Math) 
+         & is.na(Average.SAT_Reading) 
+         & is.na(X..AP_Score.3.5))
+```
+
+### All Schools vs. Schools with missing scores
+```{r}
+
+summary(hs_data_ready$X..Economically.Disadvantaged)
+
+
+hs_data_ready %>%
+  ggplot(aes(x=X..Economically.Disadvantaged)) + 
+  ggtitle("All Schools") +
+  geom_histogram(bins=20, fill = "red") +
+  theme_bw()+theme(axis.title = element_text(size=16),axis.text = element_text(size=14))+
+  ylab("Count") 
+
+
+Data_na_scores %>%
+  ggplot(aes(x=X..Economically.Disadvantaged)) + 
+  ggtitle("Schools with missing scores") +
+  geom_histogram(bins=20, fill = "red") +
+  theme_bw()+theme(axis.title = element_text(size=16),axis.text = element_text(size=14))+
+  ylab("Count") 
+```
+
+Instead I used the K Nearest Neighbor algorithm to impute the missing values. 
+
+
+#let us normalize & impute
+
+```{r}
+trans_impute <- preProcess(hs_data_ready,
+                           method = c("BoxCox", "center", "scale", "knnImpute"))
+transformed_imputed <- predict(trans_impute, hs_data_ready)
+```
+
+
+### Comparing Original data and imputed & normalized data
+
+Original Data
+``` {r}
+hs_data_ready %>%
+  ggplot(aes(x=X..Economically.Disadvantaged)) + 
+  ggtitle("Original Data") +
+  geom_histogram(bins=20, fill = "red") +
+  theme_bw()+theme(axis.title = element_text(size=16),axis.text = element_text(size=14))+
+  ylab("Count") 
+```
+
+Imputed and Normalized data
+``` {r}
+transformed_imputed %>%
+  ggplot(aes(x=X..Economically.Disadvantaged)) + 
+  ggtitle("Imputed & Normalized data") +
+  geom_histogram(bins=20, fill = "red") +
+  theme_bw()+theme(axis.title = element_text(size=16),axis.text = element_text(size=14))+
+  ylab("Count") 
+```
+
+## Relationships of Interest 
+
+SAT Math scores were the variable of interest in these examples, since AP scores, SAT Reading and SAT Math are all highly correlated, it doesn’t really matter which of the 3 we use
+
+```{r}
+#renmaing vars for larger correlation plots
+transformed_imputed <- rename(transformed_imputed, Econ_disadvan =  X..Economically.Disadvantaged)
+transformed_imputed <-rename(transformed_imputed, Avg_dist_exp =  Average.In.District.Expenditures.per.Pupil)
+transformed_imputed <-rename(transformed_imputed, Avg_exp =  Average.Expenditures.per.Pupil)
+
+
+hs_data_quick<- 
+  select(transformed_imputed, 
+         TOTAL_Enrollment,
+         X..High.Needs,
+         Econ_disadvan,
+         Average.Class.Size,
+         Average.Salary,
+         Avg_dist_exp,
+         Avg_exp,
+         Average.SAT_Math)
+
+
+
+correlations_quick<-cor(x=hs_data_quick, use = "pairwise")
+corrplot(correlations_quick, method = "circle", order= "hclust")
+```
+
+Expenditures per pupil are highly correlated with teacher salary, but not correlated at all with class size. Seems like teacher salary affects the public budget a lot more than class size does.
+
+Average SAT math shows a slight negative correlation with expenditure variables. This may be due to higher expenditures in schools with more “high needs” students (as shown by correlation above), thus the expenditure vs. SAT score relationship is really dominated by the socioeconomic vs. SAT score relationship ( I will come back to this)
+
+```{r}
+a<- ggplot(transformed_imputed, aes(Average.SAT_Math, Econ_disadvan))
+a + geom_point()+
+  geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "% of Economically Disadvantaged vs. Average SAT Math Scores")
+
+b<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Salary))
+b + geom_point() + 
+  geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "Average.Salary vs. Average SAT Math Scores")
+
+c<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Class.Size))
+c + geom_point()+ 
+  geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "Average.Class.Size vs. Average SAT Math Scores")
+
+d<- ggplot(transformed_imputed, aes(Average.SAT_Math, Avg_exp))
+d + geom_point()+ 
+  geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "Average.Expenditures.per.Pupil vs. Average SAT Math Scores")
+
+e<- ggplot(transformed_imputed, aes(Average.SAT_Math, TOTAL_Enrollment))
+e + geom_point() + geom_smooth(method = "lm", se = FALSE)+
+  labs(title = "Total Enrollment vs. Average SAT Math Scores")
+  
+```
+Scatter plots show a stronger relationship between Average SAT scores, (Expenditures per pupil & Total enrollment) than (Average Salary & Average Class size).
+
+Let’s test these two groups while controlling for Economic disadvantage.
+
+note: Since the two groups are correlated, I tested them by running two different regressions and seeing how much each variable contributed to SAT scores while controlling for Economic disadvantage.
+
+First Group
+```{r}
+lm1 <- lm(Average.SAT_Math~ Econ_disadvan + Average.Salary + Average.Class.Size, data = transformed_imputed)
+summary(lm1)
+```
+Second Group
+```{r}
+lm2 <- lm(Average.SAT_Math~ Econ_disadvan + Avg_exp + TOTAL_Enrollment, data = transformed_imputed)
+summary(lm2)
+```
+Seems like Average Expenditure per pupil does a better job at explaining variation in SAT test scores than Average Salary, even while controlling for economic disadvantage. The relationship is still negative though, meaning a 1 standard deviation increase in avg. expenditure per pupil is associated with a .083 standard deviation decrease in Average Math SAT scores (holding econ disadvantage & total enrollment constant)… kind of counter intuitive( I will come back to this)
+
+Average Class size seems to explain more variation in Average Math SAT scores than TOTAL_Enrollment, even though the scatter plot showed a stronger relationship between TOTAL_Enrollment & Average Math SAT scores. This is where the beauty of linear regressions come into play, when we control for economic disadvantage in a school , we see that Total enrollment becomes irrelevant. This implies that the relationship captured by the TOTAL_Enrollment vs. Average Math SAT scatter plot is mostly due to the fact that schools with higher Total enrollment tend to have less economically disadvantaged students as a % of their population .
+
+Based on our comparison, our final linear regression should include % of economic disadvantage, Average expenditure per pupil & Average.Class.Size.
+```{r}
+lm_combo <- lm(Average.SAT_Math~ Econ_disadvan + Avg_exp + Average.Class.Size, data = transformed_imputed)
+summary(lm_combo)
+```
+I omitted Average.Salary because it was highly correlated with Average.Expenditure.Per.Pupil
+
+But wait…. why is the effect of Average Expenditure per pupil on SAT Math scores negative? Suggesting that the more we spend per pupil on average will tend to drive down Average Math SAT scores… This is counter intuitive (I will come back to this).
+
+The linear regression output also suggest almost all of the deviation in Average SAT Math Scores is due to % of Economically disadvantaged students. With 1 standard deviation increase in % of Economically disadvantaged students Average Math SAT scores decrease by about .82 standard deviations on average (holding expenditure and class size constant).
+
+We still have some explaining/exploring to do..
+
+## Cool visuals... so what?
+The economically disadvantaged & Average class size effect on Average SAT math scores make sense, but the Average Expenditure per Pupil effect on Average SAT Math does not.
+
+Something seems to be missing here. Even though we have a lot of information on each public highschool, we are merely comparing aggregate relationships and attempting to draw conclusions from them
+
+We have tons of information on each public school, let’s make better use of it.
+
+## Defining a school "type"
+We can distinguish highschool types based off the different characteristics available in the data set.
+
+I used hierarchical clustering to get an idea of how many “unique” types there are. The dendogram below illustrates the “uniqueness” or “purity” of each cluster by the vertical distance from the next break.
+
+```{r}
+#hierarichal clustering using euclidean distance 
+distances <- dist(transformed_imputed, method = "euclidean")
+cluster_schools <- hclust(distances, method = "ward.D")
+plot(cluster_schools)
+
+##### FAIR WARNING ####
+#you will have to use a different exploratory graphing algorithm for a project with larger data, hierarichal
+#clustering assigns each data point as a cluster and finds distances across all data points
+#making it very computationally expensive'''
+```
+
+This dendogram shows 4 clusters with clearly distinct vertical distances. The vertical distance between Cluster 4 and a potential Cluster 5 is nearly 0, implying similarities between the two clusters (aka lack of “uniqueness”). So I stuck to 4 “distinct” clusters, or in our context; 4 distinct school types.
+
+Creation of 4 clusters
+```{r}
+set.seed(88)
+k=4
+kmeansGroups <- kmeans(transformed_imputed, centers = k, iter.max = 1000)
+school_k_clusters <- kmeansGroups$cluster
+```
+
+How many schools fall into each cluster
+```{r}
+table(school_k_clusters)
+```
+
+### Features of each school type
+
+
+```{r}
+#define new variable as cluster
+head(transformed_imputed)
+
+transformed_imputed$kmeans <- as.factor(school_k_clusters)
+transformed_imputed$kmeans
+
+str(transformed_imputed$kmeans)
+head(transformed_imputed)
+
+#Create data frame that contains mean of each variable
+#by cluster
+summary <-transformed_imputed %>%
+  group_by(kmeans) %>%
+  summarize_all(funs(mean)) 
+
+head(summary)
+
+#this tells you how the unique characteristics of each cluster
+```
+
+Taking a deeper look at the summary statistics across each cluster, I came to the conclusion on what characteristics defined the 4 clusters.
+Cluster 1(Low Income Rural Schools):
+Very high % of econ disadvantage students & high need students
+Extremely small total enrollment
+Mostly male students
+Mostly hispanic students
+Very small class sizes
+Relatively low teacher pay
+Very High drop out rate
+Very Low % of students attending college
+Low Math SAT scores
+
+Cluster 2:
+High % of econ disadvantaged student & high need students
+Slightly above average total enrollment
+Mostly African American & Hispanic Students
+Very large class sizes
+Very high teacher pay
+Average drop out rate
+Low % of students attending college
+Very Low Math SAT scores
+
+Cluster 3(elite schools):
+Very low % of economically disadvantaged students
+Large total enrollment
+Mostly Asian and White students
+Larger portion of females than males
+Above average class size
+Low drop out rate
+Very Large % of students attending college
+Above average teacher pay
+Very high Math SAT scores
+
+Cluster 4(avg schools):
+Avg % of econ disadvantage students
+Slightly below average Total Enrollment
+Mostly White students
+Slightly below Average Class sizes
+Very low teacher pay
+Slightly below average drop out rate
+Below Average % of students attending college
+Slightly below Avg Math SAT scores
+
+
+
+## Relationships by school "type"
+Revisiting relationships of interest by school "type"
+```{r}
+ec<- ggplot(transformed_imputed, aes(Average.SAT_Math, Econ_disadvan))
+ec + geom_point(aes(color = factor(kmeans))) +  
+  labs(title = "% of Economically Disadvantaged vs. Average SAT Math Scores")
+```
+
+We see the clusters reside where we expect them to. (for example cluster 3 aka elite schools having the lowest % of economically disadvantaged students and highest average of Math SAT scores)
+
+note: Cluster 1 shows schools with higher % of economically disadvantaged students than Cluster 2
+
+### Average Expenditure per Pupil and Average SAT Math scores
+```{r}
+exp<- ggplot(transformed_imputed, aes(Average.SAT_Math, Avg_exp))
+exp + geom_point(aes(color = factor(kmeans))) +  
+  labs(title = "Average Expenditure per Pupil vs. Average SAT Math Scores")
+```
+
+### Closer look
+```{r}
+exp_cl<- ggplot(transformed_imputed, aes(Average.SAT_Math, Avg_exp, color = kmeans))
+exp_cl + geom_point(aes(color = factor(kmeans)))+ labs(title = "Average Expenditure per Pupils vs. Average SAT Math Scores")+
+  geom_smooth(aes(group=kmeans), method = "lm", se = FALSE) +
+  facet_wrap(~kmeans)
+```
+As the regression output suggested, Expenditure per pupil is associated with lower Avg SAT Math scores for most schools.
+Our “Elite” group or Cluster 3 is the only cluster which shows a positive relationship between Expenditures and SAT scores.
+Maybe there is some reverse causality here.. Maybe the schools getting more funding tend to have a lower socioeconomic level and thus lower SAT scores.
+Let’s refer back to our correlation matrix to examine this assumption:
+```{r}
+corrplot(correlations_quick, method = "circle", order= "hclust")
+```
+
+Seems like the % of Economically disadvantaged students at your highschool is correlated with your Expenditure per Pupil ( even more correlated with In District Expenditure, but let’s focus on just Expenditure per pupil for simplicity sake)
+
+Let’s use a variable that is less correlated with the economic status of the students at a school, Average Salary seems to be a good alternative here.
+
+### Average Teacher Salary and Average SAT Math score
+```{r}
+salary<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Salary))
+salary + geom_point(aes(color = factor(kmeans))) +  
+  labs(title = "Average Teacher Salary vs. Average SAT Math Scores")
+```
+###Closer Look
+```{r}
+sal_cl<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Salary, color = kmeans))
+sal_cl + geom_point(aes(color = factor(kmeans)))+ labs(title = "Average Salary vs. Average SAT Math Scores")+
+  geom_smooth(aes(group=kmeans), method = "lm", se = FALSE) +
+  facet_wrap(~kmeans)
+```
+
+Still observing a less intense but similar relationship : Schools in Cluster 3 (elite schools) were the only schools to show a positive relationship between Average Salary and Average Math SAT scores.
+
+Cluster 4(average schools) has a good amount of variation across average salary with almost no change in Average SAT scores. Implying that increasing Avg Teacher salary does not do much to increase Avg SAT Math scores.
+
+Cluster 2’s trend line is dominated by the large amount of schools with high teacher salary and very poor Math SAT performance (seen at the top left). Outside of this, the relationship is less obvious.
+
+Cluster 1 (Rural & Low income schools) is showing a negative relationship between teacher salary and Avg SAT Math scores (as teacher salary goes up in Rural schools, Avg SAT Math scores go down, seems counter-intuitive).
+
+Inference: Increasing Average teacher pay tends to have a positive effect only at schools with the lowest portion of economically disadvantaged students (“elite” schools). This may be due to issues of discipline and class control at schools with a larger portion of economically disadvantaged students which mitigate the affect of more “valuable” teachers.
+
+### Average Class Size and Average SAT Math Scores
+```{r}
+class<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Class.Size))
+class + geom_point(aes(color = factor(kmeans))) +  
+  labs(title = "Average Class Size vs. Average SAT Math Scores")
+```
+
+### Closer Look
+```{r}
+class_cl<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Class.Size, color = kmeans))
+class_cl + geom_point(aes(color = factor(kmeans)))+ labs(title = "Average Class Size vs. Average SAT Math Scores")+
+  geom_smooth(aes(group=kmeans), method = "lm", se = FALSE) +
+  facet_wrap(~kmeans)
+```
+Cluster 1 (rural & low income schools) show a negative linear relationship between Average Class Size and Average SAT Math. (Cluster 1 has a lot of schools with very small class sizes)
+
+Cluster 2 (low income schools) has less schools with small class sizes relative to cluster 1 and shows a positive linear relationship between class size and test scores
+
+Cluster 3 & 4 show no relationship between Average Class Size and Average SAT Math Scores and have almost no schools with smaller class size
+
+Inference: In schools with higher portion of economically disadvantaged students, discipline and class control may be an obstacle that gets in the way of learning. Smaller class sizes seem to be positively correlated with SAT scores, probably due to a more disciplined environment.
+
+Note: that Cluster 1 (rural schools) have the most data points with small class sizes relative to the other Clusters (school types). It would be interesting to gather more data on very small class sizes in schools with varying degree of enrollment and portion of economically disadvantaged students to more accurately determine what the relationship looks like.
+
+## Let's quantify the relationships with regression analysis:
+
+### Cluster 1: Rural, Low Income Schools
+```{r}
+hs_data_Cluster1<- 
+  select(transformed_imputed, 
+         X..High.Needs,
+         Econ_disadvan,
+         Average.Class.Size,
+         Average.Salary,
+         Avg_dist_exp,
+         Avg_exp,
+         Average.SAT_Math,
+         kmeans) %>%
+  filter(kmeans == 1)
+```
+kmeans being read in as factor
+```{r}
+str(hs_data_Cluster1)
+```
+Run correlations on everything except kmeans (because its read in as a factor)
+```{r}
+correlations_cluster1<-cor(x=hs_data_Cluster1[1:7], use = "pairwise")
+corrplot(correlations_cluster1, method = "circle", order= "hclust")
+```
+
+Linear regression for Cluster 1
+```{r}
+linear_cluster1 <- lm(Average.SAT_Math~ Econ_disadvan + Average.Salary + Average.Class.Size, data = hs_data_Cluster1)
+summary(linear_cluster1)
+```
+Everything is as expected except for the implied effect Average.Salary has on Avg. SAT Math score. The output suggest a 1 standard deviation increase in Teacher Salary will decrease Math SAT scores by .34 standard deviations on average, holding proportion of Economically Disadvantaged and Average Class Size constant. This seems counter intuitive so let’s explore further.
+
+* We have a bit of a multi-collinearity issue here between Econ_disadvan and Average.Class.Size ***
+
+Correlation between two vars is -0.51
+
+Meaning schools with higher proportion of economically disadvantaged students tend to have smaller class sizes
+
+###Potential for Reverse Causality: 
+Are we paying teachers more in schools with poor SAT scores?
+In other words, is there some sort of relationship between our residuals and Average.Salary (testing the zero conditional mean of errors: gauss- markov assumption — -> E[Ui|Xi] = 0). Is Average.Salary truly independent of Average SAT Math scores?
+
+Testing for selection bias
+```{r}
+#saving model residuals to dataset
+hs_data_Cluster1$res = linear_cluster1$res
+
+ggplot(hs_data_Cluster1, aes(x=hs_data_Cluster1$Average.Salary, y=hs_data_Cluster1$res))+
+  geom_point(size=2, shape = 23) +
+  geom_smooth(method="loess", se = FALSE)
+```
+Does not seem like it. There is no clear relationship between Average Salary and the residuals for 
+the linear model above.
+
+Our bizzare -0.34 coeffecient for Average.Salary does not appear to be downwardly biased by 
+reverse casuality (as I hypothesized). 
+
+In other words, lower Avg Math SAT scores does not seem to drive
+higher teacher pay in Cluster 1. 
+
+### Testing Constant Variance of Residuals
+```{r}
+#saving model fitted values to dataset
+hs_data_Cluster1$fitted = linear_cluster1$fitted
+
+ggplot(hs_data_Cluster1, aes(x=hs_data_Cluster1$fitted, y=hs_data_Cluster1$res))+
+  geom_point(size=2, shape = 23) +
+  geom_smooth(method="loess", se = FALSE)
+```
+Even though we may have little data to determine constant variance, based on the data we do have, the variance of the residual is relatively constant.
+
+Based on our diagnostics, our model’s coefficients were not biased by non constant variance or reverse causality.
+
+## Cluster 2 (Low income, high enrollment schools)
+```{r}
+hs_data_Cluster2<- 
+  select(transformed_imputed, 
+         X..High.Needs,
+         Econ_disadvan,
+         Average.Class.Size,
+         Average.Salary,
+         Avg_dist_exp,
+         Avg_exp,
+         Average.SAT_Math,
+         kmeans) %>%
+  filter(kmeans == 2)
+  
+correlations_cluster2<-cor(x=hs_data_Cluster2[1:7], use = "pairwise")
+corrplot(correlations_cluster2, method = "circle", order= "hclust")
+```
+Linear Regression for Cluster 2
+```{r}
+linear_cluster2 <- lm(Average.SAT_Math~ Econ_disadvan + Average.Salary + Average.Class.Size , data = hs_data_Cluster2)
+summary(linear_cluster2)
+```
+Proportion of economically disadvantaged students seems to explain almost all the variance in Avg SAT scores in cluster 2 schools.
+
+The direction of the coefficients for Average Salary and Average Class size don’t seem to make much sense. (They imply that as salary goes up, SAT scores go down and as class size goes up, SAT scores go up)
+
+### Let’s test reverse causality once again for Average Salary and Class Size under cluster 2 schools:
+```{r}
+#saving model residuals to dataset
+hs_data_Cluster2$res = linear_cluster2$res
+
+#Testing Reverse Causality for Average Salary
+ggplot(hs_data_Cluster2, aes(x=hs_data_Cluster2$Average.Salary, y=hs_data_Cluster2$res))+
+  geom_point(size=2, shape = 23) +
+  geom_smooth(method="loess", se = FALSE)
+
+#Testing Reverse Causality for Class Size
+ggplot(hs_data_Cluster2, aes(x=hs_data_Cluster2$Average.Class.Size, y=hs_data_Cluster2$res))+
+  geom_point(size=2, shape = 23) +
+  geom_smooth(method="loess", se = FALSE)
+```
+No Clear relationship between Average Salary and residuals or Average Class Size and residuals
+
+### Testing Constant Variance of Residuals for Cluster 2:
+```{r}
+#saving model fitted values to dataset
+hs_data_Cluster2$fitted = linear_cluster2$fitted
+
+ggplot(hs_data_Cluster2, aes(x=hs_data_Cluster2$fitted, y=hs_data_Cluster2$res))+
+  geom_point(size=2, shape = 23) +
+  geom_smooth(method="loess", se = FALSE)
+```
+The spread of residuals seems to be pretty constant through out the data points, and thus the line fit does seems to be a pretty consistent fit through out the data.
+
+Based on our diagnostics, our model’s coefficients were not biased by reverse causality or residuals with non-constant variance
+
+## Cluster 3 (High income, high enrollment, "elite" schools)
+```{r}
+hs_data_Cluster3<- 
+  select(transformed_imputed, 
+         X..High.Needs,
+         Econ_disadvan,
+         Average.Class.Size,
+         Average.Salary,
+         Avg_dist_exp,
+         Avg_exp,
+         Average.SAT_Math,
+         kmeans) %>%
+  filter(kmeans == 3)
+  
+correlations_cluster3<-cor(x=hs_data_Cluster3[1:7], use = "pairwise")
+corrplot(correlations_cluster3, method = "circle", order= "hclust")
+```
+Linear Regression for cluster 3
+```{r}
+linear_cluster3 <- lm(Average.SAT_Math~ Econ_disadvan + Average.Salary + Average.Class.Size, data = hs_data_Cluster3)
+summary(linear_cluster3)
+```
+Portion of economically disadvantaged students continues to be the largest driver of performance in SAT, even in the more elite cluster (cluster 3). While the magnitude is smaller compared to schools in cluster 1 & 2, it still has the largest impact relative to Average Salary and Average Class Size.
+
+The coefficient for Average Salary conveys an expected relationship, as Teacher Salary goes up, SAT scores go up. The magnitude is relatively large (.28 standard deviation increase for every 1 standard deviation increase in salary) and also significant at the 1% level.
+
+Average Class size on the other hand, did not have a significant impact on SAT score. This supports our inference that class size is less relevant in more “elite” schools because discipline and class control becomes less of an issue.
+
+This regression model had residuals with constant variance and no clear relationship between the residuals and the values of the independent variables. Therefore non constant variance in residuals and reverse causality were not adding bias to our coefficients and.
+
+## Cluster 4 (Average Schools)
+```{r}
+hs_data_Cluster4<- 
+  select(transformed_imputed, 
+         X..High.Needs,
+         Econ_disadvan,
+         Average.Class.Size,
+         Average.Salary,
+         Avg_dist_exp,
+         Avg_exp,
+         Average.SAT_Math,
+         kmeans) %>%
+  filter(kmeans == 4)
+  
+correlations_cluster4<-cor(x=hs_data_Cluster4[1:7], use = "pairwise")
+corrplot(correlations_cluster4, method = "circle", order= "hclust")
+```
+Linear Regression for cluster 4
+```{r}
+linear_cluster4 <- lm(Average.SAT_Math~ Econ_disadvan + Average.Salary + Average.Class.Size , data = hs_data_Cluster4)
+summary(linear_cluster4)
+```
+Our independent variables explain very little of the variance in SAT Math scores for schools in cluster 4 (average schools). This is conveyed by the R-squared of 0.1521, conveying that our model explains only 15.21% of the variance in SAT math scores for schools in cluster 4.
+
+Even portion of Economically disadvantaged students has a much reduced impact on SAT math scores relative to the rest of the clusters.
+
+Our model had residuals with constant variance and no reverse causality with any of the independent variables, thus non constant variance in residuals and reverse causality were not adding bias to our coefficients
