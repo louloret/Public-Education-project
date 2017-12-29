@@ -450,7 +450,7 @@ kmeans being read in as factor
 ```{r}
 str(hs_data_Cluster1)
 ```
-Run correlations on everything except kmeans
+Run correlations on everything except kmeans (because its read in as a factor)
 ```{r}
 correlations_cluster1<-cor(x=hs_data_Cluster1[1:7], use = "pairwise")
 corrplot(correlations_cluster1, method = "circle", order= "hclust")
@@ -469,5 +469,151 @@ Correlation between two vars is -0.51
 
 Meaning schools with higher proportion of economically disadvantaged students tend to have smaller class sizes
 
-Potential for Reverse Causality: Are we paying teachers more in schools with poor SAT scores?
+###Potential for Reverse Causality: 
+Are we paying teachers more in schools with poor SAT scores?
 In other words, is there some sort of relationship between our residuals and Average.Salary (testing the zero conditional mean of errors: gauss- markov assumption — -> E[Ui|Xi] = 0). Is Average.Salary truly independent of Average SAT Math scores?
+
+Testing for selection bias
+```{r}
+#saving model residuals to dataset
+hs_data_Cluster1$res = linear_cluster1$res
+
+ggplot(hs_data_Cluster1, aes(x=hs_data_Cluster1$Average.Salary, y=hs_data_Cluster1$res))+
+  geom_point(size=2, shape = 23) +
+  geom_smooth(method="loess", se = FALSE)
+```
+Does not seem like it. There is no clear relationship between Average Salary and the residuals for 
+the linear model above.
+
+Our bizzare -0.34 coeffecient for Average.Salary does not appear to be downwardly biased by 
+reverse casuality (as I hypothesized). 
+
+In other words, lower Avg Math SAT scores does not seem to drive
+higher teacher pay in Cluster 1. 
+
+### Testing Constant Variance of Residuals
+```{r}
+#saving model fitted values to dataset
+hs_data_Cluster1$fitted = linear_cluster1$fitted
+
+ggplot(hs_data_Cluster1, aes(x=hs_data_Cluster1$fitted, y=hs_data_Cluster1$res))+
+  geom_point(size=2, shape = 23) +
+  geom_smooth(method="loess", se = FALSE)
+```
+Even though we may have little data to determine constant variance, based on the data we do have, the variance of the residual is relatively constant.
+
+Based on our diagnostics, our model’s coefficients were not biased by non constant variance or reverse causality.
+
+## Cluster 2 (Low income, high enrollment schools)
+```{r}
+hs_data_Cluster2<- 
+  select(transformed_imputed, 
+         X..High.Needs,
+         X..Economically.Disadvantaged,
+         Average.Class.Size,
+         Average.Salary,
+         Average.In.District.Expenditures.per.Pupil,
+         Average.Expenditures.per.Pupil,
+         Average.SAT_Math,
+         kmeans) %>%
+  filter(kmeans == 2)
+  
+correlations_cluster2<-cor(x=hs_data_Cluster2[1:7], use = "pairwise")
+corrplot(correlations_cluster2, method = "circle", order= "hclust")
+```
+Linear Regression for Cluster 2
+```{r}
+linear_cluster2 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size , data = hs_data_Cluster2)
+summary(linear_cluster2)
+```
+Proportion of economically disadvantaged students seems to explain almost all the variance in Avg SAT scores in cluster 2 schools.
+
+The direction of the coefficients for Average Salary and Average Class size don’t seem to make much sense. (They imply that as salary goes up, SAT scores go down and as class size goes up, SAT scores go up)
+
+### Let’s test reverse causality once again for Average Salary and Class Size under cluster 2 schools:
+```{r}
+#saving model residuals to dataset
+hs_data_Cluster2$res = linear_cluster2$res
+
+#Testing Reverse Causality for Average Salary
+ggplot(hs_data_Cluster2, aes(x=hs_data_Cluster2$Average.Salary, y=hs_data_Cluster2$res))+
+  geom_point(size=2, shape = 23) +
+  geom_smooth(method="loess", se = FALSE)
+
+#Testing Reverse Causality for Class Size
+ggplot(hs_data_Cluster2, aes(x=hs_data_Cluster2$Average.Class.Size, y=hs_data_Cluster2$res))+
+  geom_point(size=2, shape = 23) +
+  geom_smooth(method="loess", se = FALSE)
+```
+No Clear relationship between Average Salary and residuals or Average Class Size and residuals
+
+### Testing Constant Variance of Residuals for Cluster 2:
+```{r}
+#saving model fitted values to dataset
+hs_data_Cluster2$fitted = linear_cluster2$fitted
+
+ggplot(hs_data_Cluster2, aes(x=hs_data_Cluster2$fitted, y=hs_data_Cluster2$res))+
+  geom_point(size=2, shape = 23) +
+  geom_smooth(method="loess", se = FALSE)
+```
+The spread of residuals seems to be pretty constant through out the data points, and thus the line fit does seems to be a pretty consistent fit through out the data.
+
+Based on our diagnostics, our model’s coefficients were not biased by reverse causality or residuals with non-constant variance
+
+## Cluster 3 (High income, high enrollment, "elite" schools)
+```{r}
+hs_data_Cluster3<- 
+  select(transformed_imputed, 
+         X..High.Needs,
+         X..Economically.Disadvantaged,
+         Average.Class.Size,
+         Average.Salary,
+         Average.In.District.Expenditures.per.Pupil,
+         Average.Expenditures.per.Pupil,
+         Average.SAT_Math,
+         kmeans) %>%
+  filter(kmeans == 3)
+  
+correlations_cluster3<-cor(x=hs_data_Cluster3[1:7], use = "pairwise")
+corrplot(correlations_cluster3, method = "circle", order= "hclust")
+```
+Linear Regression for cluster 3
+```{r}
+linear_cluster3 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = hs_data_Cluster3)
+summary(linear_cluster3)
+```
+Portion of economically disadvantaged students continues to be the largest driver of performance in SAT, even in the more elite cluster (cluster 3). While the magnitude is smaller compared to schools in cluster 1 & 2, it still has the largest impact relative to Average Salary and Average Class Size.
+
+The coefficient for Average Salary conveys an expected relationship, as Teacher Salary goes up, SAT scores go up. The magnitude is relatively large (.28 standard deviation increase for every 1 standard deviation increase in salary) and also significant at the 1% level.
+
+Average Class size on the other hand, did not have a significant impact on SAT score. This supports our inference that class size is less relevant in more “elite” schools because discipline and class control becomes less of an issue.
+
+This regression model had residuals with constant variance and no clear relationship between the residuals and the values of the independent variables. Therefore non constant variance in residuals and reverse causality were not adding bias to our coefficients and.
+
+## Cluster 4 (Average Schools)
+```{r}
+hs_data_Cluster4<- 
+  select(transformed_imputed, 
+         X..High.Needs,
+         X..Economically.Disadvantaged,
+         Average.Class.Size,
+         Average.Salary,
+         Average.In.District.Expenditures.per.Pupil,
+         Average.Expenditures.per.Pupil,
+         Average.SAT_Math,
+         kmeans) %>%
+  filter(kmeans == 4)
+  
+correlations_cluster4<-cor(x=hs_data_Cluster4[1:7], use = "pairwise")
+corrplot(correlations_cluster4, method = "circle", order= "hclust")
+```
+Linear Regression for cluster 4
+```{r}
+linear_cluster4 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size , data = hs_data_Cluster4)
+summary(linear_cluster4)
+```
+Our independent variables explain very little of the variance in SAT Math scores for schools in cluster 4 (average schools). This is conveyed by the R-squared of 0.1521, conveying that our model explains only 15.21% of the variance in SAT math scores for schools in cluster 4.
+
+Even portion of Economically disadvantaged students has a much reduced impact on SAT math scores relative to the rest of the clusters.
+
+Our model had residuals with constant variance and no reverse causality with any of the independent variables, thus non constant variance in residuals and reverse causality were not adding bias to our coefficients
