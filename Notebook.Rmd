@@ -50,14 +50,14 @@ hs_data_ready<-
          X..Asian,
          X..Hispanic,
          X..White,
-         X..Multi.Race..Non.Hispanic,
+         #X..Multi.Race..Non.Hispanic,
          X..Males,
          X..Females,
          Average.Class.Size,
          Average.Salary,
          Average.In.District.Expenditures.per.Pupil,
          Average.Expenditures.per.Pupil,
-         X..in.Cohort,
+         #X..in.Cohort,
          X..GED,
          X..Non.Grad.Completers,
          X..Dropped.Out,
@@ -92,6 +92,7 @@ Data_na_scores <-
 
 summary(hs_data_ready$X..Economically.Disadvantaged)
 
+library(ggplot2)
 
 hs_data_ready %>%
   ggplot(aes(x=X..Economically.Disadvantaged)) + 
@@ -156,6 +157,7 @@ transformed_imputed %>%
 SAT Math scores were the variable of interest in these examples, since AP scores, SAT Reading and SAT Math are all highly correlated, it doesn’t really matter which of the 3 we use
 
 ```{r}
+library(corrplot)
 hs_data_quick<- 
   select(transformed_imputed, 
          TOTAL_Enrollment,
@@ -260,6 +262,19 @@ plot(cluster_schools)
 
 This dendogram shows 4 clusters with clearly distinct vertical distances. The vertical distance between Cluster 4 and a potential Cluster 5 is nearly 0, implying similarities between the two clusters (aka lack of “uniqueness”). So I stuck to 4 “distinct” clusters, or in our context; 4 distinct school types.
 
+Creation of 4 clusters
+```{r}
+set.seed(88)
+k=4
+kmeansGroups <- kmeans(transformed_imputed, centers = k, iter.max = 1000)
+school_k_clusters <- kmeansGroups$cluster
+```
+
+How many schools fall into each cluster
+```{r}
+table(school_k_clusters)
+```
+
 ### Features of each school type
 
 
@@ -327,10 +342,7 @@ Slightly below average drop out rate
 Below Average % of students attending college
 Slightly below Avg Math SAT scores
 
-How many schools fell under each cluster?
-```{r}
-table(school_k_clusters)
-```
+
 
 ## Relationships by school "type"
 Revisiting relationships of interest by school "type"
@@ -393,3 +405,69 @@ Cluster 2’s trend line is dominated by the large amount of schools with high t
 Cluster 1 (Rural & Low income schools) is showing a negative relationship between teacher salary and Avg SAT Math scores (as teacher salary goes up in Rural schools, Avg SAT Math scores go down, seems counter-intuitive).
 
 Inference: Increasing Average teacher pay tends to have a positive effect only at schools with the lowest portion of economically disadvantaged students (“elite” schools). This may be due to issues of discipline and class control at schools with a larger portion of economically disadvantaged students which mitigate the affect of more “valuable” teachers.
+
+### Average Class Size and Average SAT Math Scores
+```{r}
+class<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Class.Size))
+class + geom_point(aes(color = factor(kmeans))) +  
+  labs(title = "Average Class Size vs. Average SAT Math Scores")
+```
+
+### Closer Look
+```{r}
+class_cl<- ggplot(transformed_imputed, aes(Average.SAT_Math, Average.Class.Size, color = kmeans))
+class_cl + geom_point(aes(color = factor(kmeans)))+ labs(title = "Average Class Size vs. Average SAT Math Scores")+
+  geom_smooth(aes(group=kmeans), method = "lm", se = FALSE) +
+  facet_wrap(~kmeans)
+```
+Cluster 1 (rural & low income schools) show a negative linear relationship between Average Class Size and Average SAT Math. (Cluster 1 has a lot of schools with very small class sizes)
+
+Cluster 2 (low income schools) has less schools with small class sizes relative to cluster 1 and shows a positive linear relationship between class size and test scores
+
+Cluster 3 & 4 show no relationship between Average Class Size and Average SAT Math Scores and have almost no schools with smaller class size
+
+Inference: In schools with higher portion of economically disadvantaged students, discipline and class control may be an obstacle that gets in the way of learning. Smaller class sizes seem to be positively correlated with SAT scores, probably due to a more disciplined environment.
+
+Note: that Cluster 1 (rural schools) have the most data points with small class sizes relative to the other Clusters (school types). It would be interesting to gather more data on very small class sizes in schools with varying degree of enrollment and portion of economically disadvantaged students to more accurately determine what the relationship looks like.
+
+## Let's quantify the relationships with regression analysis:
+
+### Cluster 1: Rural, Low Income Schools
+```{r}
+hs_data_Cluster1<- 
+  select(transformed_imputed, 
+         X..High.Needs,
+         X..Economically.Disadvantaged,
+         Average.Class.Size,
+         Average.Salary,
+         Average.In.District.Expenditures.per.Pupil,
+         Average.Expenditures.per.Pupil,
+         Average.SAT_Math,
+         kmeans) %>%
+  filter(kmeans == 1)
+```
+kmeans being read in as factor
+```{r}
+str(hs_data_Cluster1)
+```
+Run correlations on everything except kmeans
+```{r}
+correlations_cluster1<-cor(x=hs_data_Cluster1[1:7], use = "pairwise")
+corrplot(correlations_cluster1, method = "circle", order= "hclust")
+```
+
+Linear regression for Cluster 1
+```{r}
+linear_cluster1 <- lm(Average.SAT_Math~ X..Economically.Disadvantaged + Average.Salary + Average.Class.Size, data = hs_data_Cluster1)
+summary(linear_cluster1)
+```
+Everything is as expected except for the implied effect Average.Salary has on Avg. SAT Math score. The output suggest a 1 standard deviation increase in Teacher Salary will decrease Math SAT scores by .34 standard deviations on average, holding proportion of Economically Disadvantaged and Average Class Size constant. This seems counter intuitive so let’s explore further.
+
+* We have a bit of a multi-collinearity issue here between X..Economically.Disadvantaged and Average.Class.Size ***
+
+Correlation between two vars is -0.51
+
+Meaning schools with higher proportion of economically disadvantaged students tend to have smaller class sizes
+
+Potential for Reverse Causality: Are we paying teachers more in schools with poor SAT scores?
+In other words, is there some sort of relationship between our residuals and Average.Salary (testing the zero conditional mean of errors: gauss- markov assumption — -> E[Ui|Xi] = 0). Is Average.Salary truly independent of Average SAT Math scores?
